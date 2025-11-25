@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Phone, Mail, Calendar, FileText, Edit2, MapPin } from 'lucide-react'
+import { Phone, Mail, Calendar, FileText, Edit2, MapPin, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Header } from '@/components/layout/Header'
 import { Avatar } from '@/components/ui/Avatar'
@@ -99,6 +99,29 @@ export function PatientDetailsPage() {
     patient.state,
   ].filter(Boolean).join(', ')
 
+  // Formatar telefone para WhatsApp (remover caracteres não numéricos)
+  const getWhatsAppNumber = (phone: string) => {
+    const numbers = phone.replace(/\D/g, '')
+    // Adiciona 55 (Brasil) se não tiver código do país
+    if (numbers.length <= 11) {
+      return `55${numbers}`
+    }
+    return numbers
+  }
+
+  const handleWhatsApp = () => {
+    if (patient.phone) {
+      const number = getWhatsAppNumber(patient.phone)
+      window.open(`https://wa.me/${number}`, '_blank')
+    }
+  }
+
+  const handleCall = () => {
+    if (patient.phone) {
+      window.location.href = `tel:${patient.phone}`
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface-50 pb-20">
       <Header
@@ -125,6 +148,26 @@ export function PatientDetailsPage() {
             <p className="text-surface-500 text-sm mt-1">
               {calculateAge(patient.birth_date)} anos
             </p>
+          )}
+
+          {/* Quick Action Buttons */}
+          {patient.phone && (
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleCall}
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-green-500 text-white rounded-xl font-medium active:bg-green-600"
+              >
+                <Phone className="w-5 h-5" />
+                Ligar
+              </button>
+              <button
+                onClick={handleWhatsApp}
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-[#25D366] text-white rounded-xl font-medium active:bg-[#1da851]"
+              >
+                <MessageCircle className="w-5 h-5" />
+                WhatsApp
+              </button>
+            </div>
           )}
         </div>
       </div>

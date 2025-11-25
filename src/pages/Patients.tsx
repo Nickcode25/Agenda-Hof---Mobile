@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Search, Plus, User, Phone } from 'lucide-react'
+import { Search, Plus, User, Phone, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -35,15 +35,20 @@ export function PatientsPage() {
     setLoading(false)
   }
 
+  // Remove acentos de uma string
+  const normalizeString = (str: string) => {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  }
+
   const filteredPatients = useMemo(() => {
     if (!search.trim()) return patients
 
-    const searchLower = search.toLowerCase()
+    const searchNormalized = normalizeString(search)
     return patients.filter(
       (patient) =>
-        patient.name.toLowerCase().includes(searchLower) ||
+        normalizeString(patient.name).includes(searchNormalized) ||
         patient.phone?.includes(search) ||
-        patient.email?.toLowerCase().includes(searchLower)
+        normalizeString(patient.email || '').includes(searchNormalized)
     )
   }, [patients, search])
 
@@ -67,12 +72,22 @@ export function PatientsPage() {
       <Header
         title="Pacientes"
         rightAction={
-          <button
-            onClick={() => navigate('/patient/new')}
-            className="p-2 rounded-full active:bg-orange-600"
-          >
-            <Plus className="w-6 h-6 text-white" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => navigate('/import-contacts')}
+              className="p-2 rounded-full active:bg-orange-600"
+              title="Importar contatos"
+            >
+              <Upload className="w-5 h-5 text-white" />
+            </button>
+            <button
+              onClick={() => navigate('/patient/new')}
+              className="p-2 rounded-full active:bg-orange-600"
+              title="Novo paciente"
+            >
+              <Plus className="w-6 h-6 text-white" />
+            </button>
+          </div>
         }
       />
 

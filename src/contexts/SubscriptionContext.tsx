@@ -19,6 +19,15 @@ export interface Subscription {
   cancelled_at: string | null
 }
 
+interface CourtesyUser {
+  id: string
+  auth_user_id: string
+  name: string
+  email: string
+  is_active: boolean
+  expires_at: string | null
+}
+
 interface SubscriptionContextType {
   subscription: Subscription | null
   loading: boolean
@@ -27,6 +36,7 @@ interface SubscriptionContextType {
   trialDaysLeft: number
   trialExpired: boolean
   planName: string
+  isCourtesy: boolean
   refetch: () => Promise<void>
 }
 
@@ -35,17 +45,41 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [courtesyUser, setCourtesyUser] = useState<CourtesyUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchSubscription = async () => {
     if (!user) {
       setSubscription(null)
+      setCourtesyUser(null)
       setLoading(false)
       return
     }
 
     setLoading(true)
 
+    // Primeiro verifica se é usuário cortesia
+    const { data: courtesy } = await supabase
+      .from('courtesy_users')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (courtesy) {
+      // Verifica se não expirou
+      const isValid = !courtesy.expires_at || new Date(courtesy.expires_at) > new Date()
+      if (isValid) {
+        setCourtesyUser(courtesy as CourtesyUser)
+        setSubscription(null)
+        setLoading(false)
+        return
+      }
+    }
+
+    setCourtesyUser(null)
+
+    // Se não é cortesia, busca assinatura normal
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
@@ -94,9 +128,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const { isOnTrial, trialDaysLeft, trialExpired } = calculateTrialStatus()
 
-  // Determinar se a assinatura está ativa (tem plano pago OU está no trial)
+  // Verificar se é usuário cortesia
+  const isCourtesy = !!courtesyUser
+
+  // Determinar se a assinatura está ativa (tem plano pago OU está no trial OU é cortesia)
   const hasActiveSubscription = subscription?.status === 'active'
-  const isActive = hasActiveSubscription || isOnTrial
+  const isActive = hasActiveSubscription || isOnTrial || isCourtesy
 
   // Determinar nome do plano baseado no valor
   const getPlanName = (amount: string | undefined): string => {
@@ -107,11 +144,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     return 'Plano Premium'
   }
 
-  const planName = hasActiveSubscription
-    ? getPlanName(subscription?.plan_amount)
-    : isOnTrial
-      ? `Período de teste (${trialDaysLeft} dias restantes)`
-      : 'Sem plano'
+  const planName = isCourtesy
+    ? 'Acesso Cortesia'
+    : hasActiveSubscription
+      ? getPlanName(subscription?.plan_amount)
+      : isOnTrial
+        ? `Período de teste (${trialDaysLeft} dias restantes)`
+        : 'Sem plano'
 
   return (
     <SubscriptionContext.Provider
@@ -123,6 +162,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         trialDaysLeft,
         trialExpired,
         planName,
+        isCourtesy,
         refetch: fetchSubscription,
       }}
     >

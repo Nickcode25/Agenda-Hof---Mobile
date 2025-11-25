@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Calendar } from 'lucide-react'
 
 export function LoginPage() {
   const { signIn } = useAuth()
@@ -26,9 +26,9 @@ export function LoginPage() {
     <div className="min-h-screen flex flex-col justify-center px-6 bg-white">
       <div className="mb-10 text-center">
         <div className="w-20 h-20 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-          <span className="text-2xl font-bold text-white">HOF</span>
+          <Calendar className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-surface-900">AgendaHOF</h1>
+        <h1 className="text-2xl font-bold text-surface-900">Agenda HOF</h1>
         <p className="text-surface-500 mt-1">Faça login para continuar</p>
       </div>
 

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { Header } from '@/components/layout/Header'
@@ -8,14 +8,16 @@ import { LogOut, ChevronRight, Bell, Shield, HelpCircle, CreditCard, Crown, Cloc
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
 
 export function SettingsPage() {
-  const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { isActive, planName, subscription, isOnTrial, trialDaysLeft } = useSubscription()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleSignOut = async () => {
-    if (confirm('Deseja sair da sua conta?')) {
-      await signOut()
-    }
+    setLoggingOut(true)
+    await signOut()
+    setLoggingOut(false)
+    setShowLogoutModal(false)
   }
 
   const handleOpenWebsite = () => {
@@ -128,7 +130,7 @@ export function SettingsPage() {
         </div>
 
         <button
-          onClick={handleSignOut}
+          onClick={() => setShowLogoutModal(true)}
           className="card w-full flex items-center justify-center gap-2 p-4 text-red-600 active:bg-red-50"
         >
           <LogOut className="w-5 h-5" />
@@ -136,9 +138,51 @@ export function SettingsPage() {
         </button>
 
         <p className="text-center text-sm text-surface-400 pt-4">
-          AgendaHOF Mobile v1.0.0
+          Agenda HOF Mobile v1.0.0
         </p>
       </div>
+
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowLogoutModal(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogOut className="w-7 h-7 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-surface-900 mb-2">
+                Sair da conta?
+              </h3>
+              <p className="text-surface-500 text-sm">
+                Você precisará fazer login novamente para acessar sua conta.
+              </p>
+            </div>
+
+            <div className="flex border-t border-surface-100">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-4 text-surface-600 font-medium border-r border-surface-100 active:bg-surface-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSignOut}
+                disabled={loggingOut}
+                className="flex-1 py-4 text-red-600 font-medium active:bg-red-50 disabled:opacity-50"
+              >
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Header } from '@/components/layout/Header'
 import { Loading } from '@/components/ui/Loading'
@@ -11,6 +11,8 @@ export function EditPatientPage() {
   const { id } = useParams<{ id: string }>()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [error, setError] = useState('')
 
   // Campos do formulário
@@ -103,6 +105,26 @@ export function EditPatientPage() {
       console.error('Erro ao atualizar paciente:', err)
       setError(err.message || 'Erro ao atualizar paciente')
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      const { error: deleteError } = await supabase
+        .from('patients')
+        .delete()
+        .eq('id', id!)
+
+      if (deleteError) throw deleteError
+
+      // Voltar para a lista de pacientes
+      navigate('/patients', { replace: true })
+    } catch (err: any) {
+      console.error('Erro ao excluir paciente:', err)
+      setError(err.message || 'Erro ao excluir paciente')
+      setDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -223,7 +245,7 @@ export function EditPatientPage() {
         )}
 
         {/* Botão Salvar */}
-        <div className="pt-4">
+        <div className="pt-4 space-y-3">
           <button
             type="submit"
             disabled={saving}
@@ -238,8 +260,59 @@ export function EditPatientPage() {
               'Salvar Alterações'
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-200 text-red-600 font-medium active:bg-red-50"
+          >
+            <Trash2 className="w-5 h-5" />
+            Excluir Paciente
+          </button>
         </div>
       </form>
+
+      {/* Delete Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDeleteModal(false)}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-7 h-7 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-surface-900 mb-2">
+                Excluir paciente?
+              </h3>
+              <p className="text-surface-500 text-sm">
+                Esta ação não pode ser desfeita. Todos os dados do paciente serão removidos permanentemente.
+              </p>
+            </div>
+
+            <div className="flex border-t border-surface-100">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 py-4 text-surface-600 font-medium border-r border-surface-100 active:bg-surface-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-4 text-red-600 font-medium active:bg-red-50 disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

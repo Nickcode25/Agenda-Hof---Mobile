@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { SubscriptionProvider, useSubscription } from '@/contexts/SubscriptionContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { Loading } from '@/components/ui/Loading'
 import { LoginPage } from '@/pages/Login'
@@ -13,6 +14,7 @@ import { NewAppointmentPage } from '@/pages/NewAppointment'
 import { SettingsPage } from '@/pages/Settings'
 import { PlansPage } from '@/pages/Plans'
 import { SubscriptionBlockedPage } from '@/pages/SubscriptionBlocked'
+import { ImportContactsPage } from '@/pages/ImportContacts'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -138,6 +140,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/import-contacts"
+          element={
+            <SubscriptionRequiredRoute>
+              <ImportContactsPage />
+            </SubscriptionRequiredRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/agenda" replace />} />
       </Routes>
 
@@ -150,7 +160,9 @@ export default function App() {
   return (
     <AuthProvider>
       <SubscriptionProvider>
-        <AppRoutes />
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
       </SubscriptionProvider>
     </AuthProvider>
   )

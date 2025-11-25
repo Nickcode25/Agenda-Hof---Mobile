@@ -21,15 +21,27 @@ import {
   getMinutes,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, ChevronDown, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ChevronDown, Phone, MessageCircle, Check, X, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loading } from '@/components/ui/Loading'
 import { TrialBanner } from '@/components/TrialBanner'
-import type { Appointment } from '@/types/database'
+import type { Appointment, RecurringBlock } from '@/types/database'
 
 type ViewMode = 'day' | 'week'
+
+// Tipo unificado para exibição na agenda
+type AgendaItem = {
+  id: string
+  type: 'appointment' | 'block' | 'commitment'
+  title: string
+  start: Date
+  end: Date
+  status?: string
+  patient_id?: string
+  procedure?: string
+}
 
 const statusColors: Record<string, string> = {
   scheduled: 'bg-orange-500',
@@ -47,7 +59,9 @@ for (let h = 7; h <= 23; h++) {
 }
 TIME_SLOTS.push({ hour: 24, minute: 0, label: '24:00' })
 
-const SLOT_HEIGHT = 40 // pixels por slot de 30 min
+// 40px por cada 15 minutos (80px por slot de 30 min, 160px por hora)
+const PIXELS_PER_15MIN = 40
+const SLOT_HEIGHT = PIXELS_PER_15MIN * 2 // 80px por slot de 30 min
 
 export function AgendaPage() {
   const navigate = useNavigate()
@@ -55,6 +69,8 @@ export function AgendaPage() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [personalCommitments, setPersonalCommitments] = useState<Appointment[]>([])
+  const [recurringBlocks, setRecurringBlocks] = useState<RecurringBlock[]>([])
   const [loading, setLoading] = useState(true)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [pickerMonth, setPickerMonth] = useState(new Date())
@@ -79,16 +95,65 @@ export function AgendaPage() {
     }
   }, [dateRange, user])
 
-  // Scroll para horário atual ao carregar
+  // Scroll para o primeiro agendamento do dia ou horário atual
   useEffect(() => {
     if (scrollRef.current && !loading) {
-      const currentHour = new Date().getHours()
-      const currentMinute = new Date().getMinutes()
-      const slotIndex = (currentHour - 7) * 2 + (currentMinute >= 30 ? 1 : 0)
-      const scrollPosition = Math.max(0, slotIndex * SLOT_HEIGHT - 100)
+      // Pegar todos os itens do dia selecionado
+      const allItems = [...appointments, ...personalCommitments]
+      const dayItems = allItems.filter((item) => {
+        try {
+          return isSameDay(parseISO(item.start), selectedDate)
+        } catch {
+          return false
+        }
+      })
+
+      // Também considerar bloqueios recorrentes
+      const dayOfWeek = getDay(selectedDate)
+      const dayBlocks = recurringBlocks.filter((block) => {
+        let daysArray = block.days_of_week
+        if (typeof daysArray === 'string') {
+          try {
+            daysArray = JSON.parse(daysArray)
+          } catch {
+            daysArray = []
+          }
+        }
+        return Array.isArray(daysArray) && daysArray.includes(dayOfWeek)
+      })
+
+      let scrollHour = 7 // Default: início do dia
+      let scrollMinute = 0
+
+      if (dayItems.length > 0) {
+        // Encontrar o primeiro agendamento do dia
+        const sortedItems = dayItems.sort((a, b) =>
+          new Date(a.start).getTime() - new Date(b.start).getTime()
+        )
+        const firstItem = sortedItems[0]
+        const firstStart = parseISO(firstItem.start)
+        scrollHour = getHours(firstStart)
+        scrollMinute = getMinutes(firstStart)
+      } else if (dayBlocks.length > 0) {
+        // Se não há agendamentos mas há bloqueios, usar o primeiro bloqueio
+        const sortedBlocks = dayBlocks.sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        )
+        const [h, m] = sortedBlocks[0].start_time.split(':').map(Number)
+        scrollHour = h
+        scrollMinute = m
+      } else {
+        // Se não há nada, usar horário atual
+        scrollHour = new Date().getHours()
+        scrollMinute = new Date().getMinutes()
+      }
+
+      // Calcular posição de scroll (subtrair um pouco para dar margem)
+      const minutesFrom7 = (scrollHour - 7) * 60 + scrollMinute
+      const scrollPosition = Math.max(0, (minutesFrom7 / 15) * PIXELS_PER_15MIN - 40)
       scrollRef.current.scrollTop = scrollPosition
     }
-  }, [loading, viewMode])
+  }, [loading, viewMode, selectedDate, appointments, personalCommitments, recurringBlocks])
 
   const fetchAppointments = async () => {
     setLoading(true)
@@ -98,19 +163,53 @@ export function AgendaPage() {
     const dayStart = `${startStr}T00:00:00-03:00`
     const dayEnd = `${endStr}T23:59:59-03:00`
 
-    const { data, error } = await supabase
+    // Buscar agendamentos normais (is_personal = false ou null)
+    const { data: appointmentsData, error: appointmentsError } = await supabase
       .from('appointments')
       .select('*')
       .eq('user_id', user!.id)
       .gte('start', dayStart)
       .lte('start', dayEnd)
+      .or('is_personal.is.null,is_personal.eq.false')
       .order('start', { ascending: true })
 
-    if (!error && data) {
-      setAppointments(data as Appointment[])
-    } else if (error) {
-      console.error('Erro ao buscar agendamentos:', error)
+    if (!appointmentsError && appointmentsData) {
+      setAppointments(appointmentsData as Appointment[])
+    } else if (appointmentsError) {
+      console.error('Erro ao buscar agendamentos:', appointmentsError)
     }
+
+    // Buscar compromissos pessoais (is_personal = true)
+    const { data: commitmentsData, error: commitmentsError } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('user_id', user!.id)
+      .eq('is_personal', true)
+      .gte('start', dayStart)
+      .lte('start', dayEnd)
+      .neq('status', 'cancelled')
+      .order('start', { ascending: true })
+
+    if (!commitmentsError && commitmentsData) {
+      setPersonalCommitments(commitmentsData as Appointment[])
+    } else if (commitmentsError) {
+      console.error('Erro ao buscar compromissos:', commitmentsError)
+    }
+
+    // Buscar bloqueios recorrentes (busca todos os ativos)
+    // Campo é 'active' não 'is_active', e user_id
+    const { data: blocksData, error: blocksError } = await supabase
+      .from('recurring_blocks')
+      .select('*')
+      .eq('user_id', user!.id)
+      .eq('active', true)
+
+    if (blocksError) {
+      console.error('Erro ao buscar bloqueios:', blocksError)
+    } else if (blocksData) {
+      setRecurringBlocks(blocksData as RecurringBlock[])
+    }
+
     setLoading(false)
   }
 
@@ -160,6 +259,107 @@ export function AgendaPage() {
         return false
       }
     })
+  }
+
+  // Filtrar compromissos pessoais por dia
+  const getCommitmentsForDay = (date: Date) => {
+    return personalCommitments.filter((c) => {
+      try {
+        return isSameDay(parseISO(c.start), date)
+      } catch {
+        return false
+      }
+    })
+  }
+
+  // Filtrar bloqueios recorrentes por dia (verifica o dia da semana)
+  const getBlocksForDay = (date: Date) => {
+    const dayOfWeek = getDay(date) // 0=Domingo, 1=Segunda, etc.
+
+    return recurringBlocks.filter((block) => {
+      // days_of_week pode ser um array ou uma string JSON
+      let daysArray = block.days_of_week
+      if (typeof daysArray === 'string') {
+        try {
+          daysArray = JSON.parse(daysArray)
+        } catch {
+          daysArray = []
+        }
+      }
+
+      return Array.isArray(daysArray) && daysArray.includes(dayOfWeek)
+    })
+  }
+
+  // Combinar todos os itens para um dia (para o DayGridView)
+  const getAllItemsForDay = (date: Date): AgendaItem[] => {
+    const items: AgendaItem[] = []
+
+    // Adicionar agendamentos
+    getAppointmentsForDay(date).forEach((apt) => {
+      items.push({
+        id: apt.id,
+        type: 'appointment',
+        title: apt.patient_name,
+        start: parseISO(apt.start),
+        end: parseISO(apt.end),
+        status: apt.status,
+        patient_id: apt.patient_id,
+        procedure: apt.procedure,
+      })
+    })
+
+    // Adicionar compromissos pessoais (usam campo title ao invés de patient_name)
+    getCommitmentsForDay(date).forEach((c) => {
+      items.push({
+        id: c.id,
+        type: 'commitment',
+        title: c.title || c.procedure || 'Compromisso',
+        start: parseISO(c.start),
+        end: parseISO(c.end),
+        status: c.status,
+      })
+    })
+
+    // Adicionar bloqueios recorrentes (converter horário para data)
+    getBlocksForDay(date).forEach((block) => {
+      const [startH, startM] = block.start_time.split(':').map(Number)
+      const [endH, endM] = block.end_time.split(':').map(Number)
+
+      const start = new Date(date)
+      start.setHours(startH, startM, 0, 0)
+
+      const end = new Date(date)
+      end.setHours(endH, endM, 0, 0)
+
+      items.push({
+        id: block.id,
+        type: 'block',
+        title: block.title,
+        start,
+        end,
+      })
+    })
+
+    return items.sort((a, b) => a.start.getTime() - b.start.getTime())
+  }
+
+  // Atualizar status de um agendamento
+  const updateAppointmentStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Erro ao atualizar status:', error)
+      return
+    }
+
+    // Atualizar lista local
+    setAppointments((prev) =>
+      prev.map((apt) => (apt.id === id ? { ...apt, status: status as Appointment['status'] } : apt))
+    )
   }
 
   // Dias da semana (começa na segunda)
@@ -260,17 +460,17 @@ export function AgendaPage() {
         <>
           {viewMode === 'day' && (
             <DayGridView
-              selectedDate={selectedDate}
-              appointments={getAppointmentsForDay(selectedDate)}
+              items={getAllItemsForDay(selectedDate)}
               navigate={navigate}
               scrollRef={scrollRef}
+              onUpdateStatus={updateAppointmentStatus}
             />
           )}
 
           {viewMode === 'week' && (
             <WeekGridView
               weekDays={weekDays}
-              getAppointmentsForDay={getAppointmentsForDay}
+              getAllItemsForDay={getAllItemsForDay}
               navigate={navigate}
               scrollRef={scrollRef}
             />
@@ -371,18 +571,84 @@ export function AgendaPage() {
   )
 }
 
+// Cores por tipo de item
+const itemColors: Record<string, string> = {
+  appointment: 'bg-orange-500',
+  block: 'bg-sky-300', // Azul claro como no site
+  commitment: 'bg-sky-500',
+}
+
 // Day Grid View - Full screen com 30 min slots
 function DayGridView({
-  selectedDate,
-  appointments,
+  items,
   navigate,
   scrollRef,
+  onUpdateStatus,
 }: {
-  selectedDate: Date
-  appointments: Appointment[]
+  items: AgendaItem[]
   navigate: (path: string) => void
   scrollRef: React.RefObject<HTMLDivElement>
+  onUpdateStatus: (id: string, status: string) => Promise<void>
 }) {
+  const [selectedItem, setSelectedItem] = useState<AgendaItem | null>(null)
+  const [patientPhone, setPatientPhone] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
+  const [loadingPhone, setLoadingPhone] = useState(false)
+
+  // Buscar telefone do paciente quando seleciona um item
+  const handleSelectItem = async (item: AgendaItem) => {
+    setSelectedItem(item)
+    setPatientPhone(null)
+
+    if (item.patient_id) {
+      setLoadingPhone(true)
+      const { data } = await supabase
+        .from('patients')
+        .select('phone')
+        .eq('id', item.patient_id)
+        .single()
+
+      if (data?.phone) {
+        setPatientPhone(data.phone)
+      }
+      setLoadingPhone(false)
+    }
+  }
+
+  // Formatar telefone para WhatsApp
+  const getWhatsAppNumber = (phone: string) => {
+    const numbers = phone.replace(/\D/g, '')
+    if (numbers.length <= 11) {
+      return `55${numbers}`
+    }
+    return numbers
+  }
+
+  const handleCall = (phone: string) => {
+    window.location.href = `tel:${phone}`
+    setSelectedItem(null)
+  }
+
+  const handleWhatsApp = (phone: string) => {
+    const number = getWhatsAppNumber(phone)
+    window.open(`https://wa.me/${number}`, '_blank')
+    setSelectedItem(null)
+  }
+
+  const handleConfirm = async (item: AgendaItem) => {
+    setUpdating(true)
+    await onUpdateStatus(item.id, 'confirmed')
+    setUpdating(false)
+    setSelectedItem(null)
+  }
+
+  const handleCancel = async (item: AgendaItem) => {
+    setUpdating(true)
+    await onUpdateStatus(item.id, 'cancelled')
+    setUpdating(false)
+    setSelectedItem(null)
+  }
+
   // Linha "dia todo"
   const allDayRow = (
     <div className="flex border-b border-surface-200 bg-surface-50">
@@ -426,35 +692,62 @@ function DayGridView({
               />
             ))}
 
-            {/* Agendamentos */}
-            {appointments.map((apt) => {
-              const startTime = parseISO(apt.start)
-              const endTime = parseISO(apt.end)
-              const startHour = getHours(startTime) + getMinutes(startTime) / 60
-              const endHour = getHours(endTime) + getMinutes(endTime) / 60
-              const startSlot = (startHour - 7) * 2
-              const endSlot = (endHour - 7) * 2
-              const top = startSlot * SLOT_HEIGHT
-              const height = (endSlot - startSlot) * SLOT_HEIGHT
+            {/* Itens da Agenda (agendamentos, bloqueios, compromissos) */}
+            {items.map((item) => {
+              const startHour = getHours(item.start) + getMinutes(item.start) / 60
+              const endHour = getHours(item.end) + getMinutes(item.end) / 60
+              // Calcular posição e altura baseado em 15 minutos = 40px
+              const startMinutesFrom7 = (startHour - 7) * 60
+              const endMinutesFrom7 = (endHour - 7) * 60
+              const durationMinutes = endMinutesFrom7 - startMinutesFrom7
+              const top = (startMinutesFrom7 / 15) * PIXELS_PER_15MIN
+              const height = (durationMinutes / 15) * PIXELS_PER_15MIN
+              const isSmall = durationMinutes <= 15 // 15 min ou menos
+
+              // Definir cor baseada no tipo e status
+              let bgColor = itemColors[item.type]
+              if (item.type === 'appointment' && item.status) {
+                bgColor = statusColors[item.status] || 'bg-orange-500'
+              }
+
+              // Handler de clique baseado no tipo
+              const handleClick = () => {
+                if (item.type === 'appointment') {
+                  handleSelectItem(item)
+                }
+                // Bloqueios e compromissos não navegam por enquanto
+              }
 
               return (
                 <button
-                  key={apt.id}
-                  onClick={() => navigate(`/patient/${apt.patient_id}`)}
-                  className={`absolute left-1 right-1 rounded-lg p-2 text-white text-left overflow-hidden ${
-                    statusColors[apt.status] || 'bg-orange-500'
-                  }`}
+                  key={`${item.type}-${item.id}`}
+                  onClick={handleClick}
+                  className={`absolute left-1 right-1 rounded-lg text-white text-left overflow-hidden ${bgColor} ${isSmall ? 'px-2 py-1' : 'p-2'}`}
                   style={{
                     top: `${top}px`,
-                    height: `${Math.max(height, SLOT_HEIGHT)}px`,
+                    height: `${Math.max(height, PIXELS_PER_15MIN)}px`,
                   }}
                 >
-                  <div className="font-semibold text-sm truncate">{apt.patient_name}</div>
-                  <div className="text-xs opacity-90">
-                    {format(startTime, 'HH:mm')} - {format(endTime, 'HH:mm')}
-                  </div>
-                  {height > 60 && apt.procedure && (
-                    <div className="text-xs mt-0.5 truncate opacity-80">{apt.procedure}</div>
+                  {isSmall ? (
+                    // Layout compacto para slots pequenos (15 min)
+                    // Formato: 14:00 - 14:15 - Nome do Paciente
+                    <div className="flex items-center gap-1 h-full">
+                      <span className="text-xs font-medium opacity-90 whitespace-nowrap">
+                        {format(item.start, 'HH:mm')} - {format(item.end, 'HH:mm')}
+                      </span>
+                      <span className="text-xs opacity-90">-</span>
+                      <span className="font-semibold text-sm truncate flex-1">
+                        {item.title}
+                      </span>
+                    </div>
+                  ) : (
+                    // Layout expandido para slots maiores
+                    <>
+                      <div className="font-bold text-sm truncate">{item.title}</div>
+                      <div className="text-xs opacity-90 mt-0.5">
+                        {format(item.start, 'HH:mm')} - {format(item.end, 'HH:mm')}
+                      </div>
+                    </>
                   )}
                 </button>
               )
@@ -462,6 +755,124 @@ function DayGridView({
           </div>
         </div>
       </div>
+
+      {/* Modal de Ações Rápidas */}
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setSelectedItem(null)}
+          />
+          <div className="relative bg-white rounded-t-3xl w-full max-w-lg safe-area-bottom animate-slide-up">
+            {/* Header */}
+            <div className="p-4 border-b border-surface-100">
+              <div className="w-10 h-1 bg-surface-300 rounded-full mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-surface-900 text-center">
+                {selectedItem.title}
+              </h3>
+              <p className="text-sm text-surface-500 text-center mt-1">
+                {format(selectedItem.start, 'HH:mm')} - {format(selectedItem.end, 'HH:mm')}
+                {selectedItem.procedure && ` • ${selectedItem.procedure}`}
+              </p>
+              {selectedItem.status && (
+                <div className="flex justify-center mt-2">
+                  <span
+                    className={`text-xs font-medium px-3 py-1 rounded-full ${
+                      selectedItem.status === 'confirmed'
+                        ? 'bg-green-100 text-green-700'
+                        : selectedItem.status === 'cancelled'
+                        ? 'bg-red-100 text-red-700'
+                        : selectedItem.status === 'completed' || selectedItem.status === 'done'
+                        ? 'bg-gray-100 text-gray-700'
+                        : 'bg-orange-100 text-orange-700'
+                    }`}
+                  >
+                    {selectedItem.status === 'scheduled' && 'Agendado'}
+                    {selectedItem.status === 'confirmed' && 'Confirmado'}
+                    {selectedItem.status === 'cancelled' && 'Cancelado'}
+                    {(selectedItem.status === 'completed' || selectedItem.status === 'done') && 'Concluído'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Ações */}
+            <div className="p-4 space-y-2">
+              {/* Contato (se tiver telefone) */}
+              {loadingPhone ? (
+                <div className="flex justify-center py-3">
+                  <div className="w-5 h-5 border-2 border-surface-300 border-t-orange-500 rounded-full animate-spin" />
+                </div>
+              ) : patientPhone && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCall(patientPhone)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-xl font-medium active:bg-green-600"
+                  >
+                    <Phone className="w-5 h-5" />
+                    Ligar
+                  </button>
+                  <button
+                    onClick={() => handleWhatsApp(patientPhone)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] text-white rounded-xl font-medium active:bg-[#1da851]"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    WhatsApp
+                  </button>
+                </div>
+              )}
+
+              {/* Alterar Status (apenas para agendamentos não finalizados) */}
+              {selectedItem.status !== 'completed' && selectedItem.status !== 'done' && selectedItem.status !== 'cancelled' && (
+                <div className="flex gap-2">
+                  {selectedItem.status !== 'confirmed' && (
+                    <button
+                      onClick={() => handleConfirm(selectedItem)}
+                      disabled={updating}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-500 text-white rounded-xl font-medium active:bg-blue-600 disabled:opacity-50"
+                    >
+                      <Check className="w-5 h-5" />
+                      {updating ? 'Atualizando...' : 'Confirmar'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleCancel(selectedItem)}
+                    disabled={updating}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 text-white rounded-xl font-medium active:bg-red-600 disabled:opacity-50"
+                  >
+                    <X className="w-5 h-5" />
+                    {updating ? 'Atualizando...' : 'Cancelar'}
+                  </button>
+                </div>
+              )}
+
+              {/* Ver Paciente */}
+              {selectedItem.patient_id && (
+                <button
+                  onClick={() => {
+                    navigate(`/patient/${selectedItem.patient_id}`)
+                    setSelectedItem(null)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-surface-100 text-surface-700 rounded-xl font-medium active:bg-surface-200"
+                >
+                  <User className="w-5 h-5" />
+                  Ver Paciente
+                </button>
+              )}
+            </div>
+
+            {/* Botão Fechar */}
+            <div className="p-4 pt-0">
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="w-full py-3 text-surface-500 font-medium"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -469,17 +880,18 @@ function DayGridView({
 // Week Grid View
 function WeekGridView({
   weekDays,
-  getAppointmentsForDay,
+  getAllItemsForDay,
   navigate,
   scrollRef,
 }: {
   weekDays: Date[]
-  getAppointmentsForDay: (date: Date) => Appointment[]
+  getAllItemsForDay: (date: Date) => AgendaItem[]
   navigate: (path: string) => void
   scrollRef: React.RefObject<HTMLDivElement>
 }) {
-  // Altura maior para acomodar mais texto
-  const WEEK_SLOT_HEIGHT = 50
+  // 40px por 15 min na semana também
+  const WEEK_PIXELS_PER_15MIN = 40
+  const WEEK_SLOT_HEIGHT = WEEK_PIXELS_PER_15MIN * 2 // 80px por 30 min
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -525,7 +937,7 @@ function WeekGridView({
 
           {/* Colunas dos dias */}
           {weekDays.map((day) => {
-            const dayAppointments = getAppointmentsForDay(day)
+            const dayItems = getAllItemsForDay(day)
 
             return (
               <div
@@ -544,34 +956,45 @@ function WeekGridView({
                   />
                 ))}
 
-                {/* Agendamentos */}
-                {dayAppointments.map((apt) => {
-                  const startTime = parseISO(apt.start)
-                  const endTime = parseISO(apt.end)
-                  const startHour = getHours(startTime) + getMinutes(startTime) / 60
-                  const endHour = getHours(endTime) + getMinutes(endTime) / 60
-                  const startSlot = (startHour - 7) * 2
-                  const endSlot = (endHour - 7) * 2
-                  const top = startSlot * WEEK_SLOT_HEIGHT
-                  const height = (endSlot - startSlot) * WEEK_SLOT_HEIGHT
+                {/* Itens da Agenda */}
+                {dayItems.map((item) => {
+                  const startHour = getHours(item.start) + getMinutes(item.start) / 60
+                  const endHour = getHours(item.end) + getMinutes(item.end) / 60
+                  // Calcular posição e altura baseado em 15 minutos = 40px
+                  const startMinutesFrom7 = (startHour - 7) * 60
+                  const endMinutesFrom7 = (endHour - 7) * 60
+                  const durationMinutes = endMinutesFrom7 - startMinutesFrom7
+                  const top = (startMinutesFrom7 / 15) * WEEK_PIXELS_PER_15MIN
+                  const height = (durationMinutes / 15) * WEEK_PIXELS_PER_15MIN
+
+                  // Definir cor baseada no tipo e status
+                  let bgColor = itemColors[item.type]
+                  if (item.type === 'appointment' && item.status) {
+                    bgColor = statusColors[item.status] || 'bg-orange-500'
+                  }
+
+                  // Handler de clique
+                  const handleClick = () => {
+                    if (item.type === 'appointment' && item.patient_id) {
+                      navigate(`/patient/${item.patient_id}`)
+                    }
+                  }
 
                   return (
                     <button
-                      key={apt.id}
-                      onClick={() => navigate(`/patient/${apt.patient_id}`)}
-                      className={`absolute left-0.5 right-0.5 rounded p-1 text-white text-left overflow-hidden shadow-sm ${
-                        statusColors[apt.status] || 'bg-orange-500'
-                      }`}
+                      key={`${item.type}-${item.id}`}
+                      onClick={handleClick}
+                      className={`absolute left-0.5 right-0.5 rounded p-1 text-white text-left overflow-hidden shadow-sm ${bgColor}`}
                       style={{
                         top: `${top}px`,
-                        height: `${Math.max(height, WEEK_SLOT_HEIGHT)}px`,
+                        height: `${Math.max(height, WEEK_PIXELS_PER_15MIN)}px`,
                       }}
                     >
                       <div className="text-[9px] font-medium leading-tight">
-                        {format(startTime, 'HH:mm')}
+                        {format(item.start, 'HH:mm')}
                       </div>
                       <div className="text-[10px] font-bold truncate">
-                        {apt.patient_name?.split(' ')[0]}
+                        {item.title.split(' ')[0]}
                       </div>
                     </button>
                   )
