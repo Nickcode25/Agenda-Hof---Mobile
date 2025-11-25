@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(npx cap:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: setup mobile app with subscription system and calendar improvements\n\n- Setup React + Vite + Capacitor mobile app structure\n- Implement subscription context with 7-day trial period\n- Add Plans page with external website redirect for subscriptions\n- Add Trial banner component with countdown\n- Add SubscriptionBlocked page for expired trials\n- Configure calendar to start week on Monday (Segunda)\n- Optimize weekly view for iPhone with compact layout\n- Use single letter day abbreviations for better mobile UX\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
