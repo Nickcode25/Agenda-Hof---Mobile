@@ -135,6 +135,18 @@ export function LoginPage() {
               'Entrar'
             )}
           </button>
+
+          {/* Register Link */}
+          <p className="text-center text-surface-500 text-sm pt-2">
+            Não tem uma conta?{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="text-orange-500 font-medium"
+            >
+              Cadastre-se
+            </button>
+          </p>
         </form>
       </div>
     </div>

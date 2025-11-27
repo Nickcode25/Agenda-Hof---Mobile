@@ -19,6 +19,7 @@ import { SubscriptionBlockedPage } from '@/pages/SubscriptionBlocked'
 import { ImportContactsPage } from '@/pages/ImportContacts'
 import { ForgotPasswordPage } from '@/pages/ForgotPassword'
 import { ResetPasswordPage } from '@/pages/ResetPassword'
+import { RegisterPage } from '@/pages/Register'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -95,6 +96,10 @@ function AppRoutes() {
         <Route
           path="/reset-password"
           element={<ResetPasswordPage />}
+        />
+        <Route
+          path="/register"
+          element={user ? <Navigate to="/agenda" replace /> : <RegisterPage />}
         />
         <Route
           path="/"
