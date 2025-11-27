@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { SubscriptionProvider, useSubscription } from '@/contexts/SubscriptionContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
@@ -15,6 +17,8 @@ import { SettingsPage } from '@/pages/Settings'
 import { PlansPage } from '@/pages/Plans'
 import { SubscriptionBlockedPage } from '@/pages/SubscriptionBlocked'
 import { ImportContactsPage } from '@/pages/ImportContacts'
+import { ForgotPasswordPage } from '@/pages/ForgotPassword'
+import { ResetPasswordPage } from '@/pages/ResetPassword'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -52,6 +56,26 @@ function SubscriptionRequiredRoute({ children }: { children: React.ReactNode }) 
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const navigate = useNavigate()
+
+  // Deep Links handler
+  useEffect(() => {
+    const handleAppUrlOpen = (event: URLOpenListenerEvent) => {
+      const url = new URL(event.url)
+      const path = url.pathname + url.search + url.hash
+
+      // Se for um link de reset de senha, navega para a página
+      if (path.includes('reset-password') || url.hash.includes('access_token')) {
+        navigate('/reset-password' + url.hash)
+      }
+    }
+
+    CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen)
+
+    return () => {
+      CapacitorApp.removeAllListeners()
+    }
+  }, [navigate])
 
   if (loading) {
     return <Loading fullScreen text="Carregando..." />
@@ -63,6 +87,14 @@ function AppRoutes() {
         <Route
           path="/login"
           element={user ? <Navigate to="/agenda" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/forgot-password"
+          element={user ? <Navigate to="/agenda" replace /> : <ForgotPasswordPage />}
+        />
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage />}
         />
         <Route
           path="/"

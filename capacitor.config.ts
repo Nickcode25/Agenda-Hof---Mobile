@@ -21,6 +21,8 @@ const config: CapacitorConfig = {
   },
   ios: {
     contentInset: 'automatic',
+    // URL Schemes para Deep Links
+    scheme: 'agendahof',
   },
 };
 

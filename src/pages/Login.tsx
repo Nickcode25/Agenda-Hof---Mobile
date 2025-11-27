@@ -1,8 +1,10 @@
 import { useState, FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loader2, User, Lock, Eye, EyeOff } from 'lucide-react'
 
 export function LoginPage() {
+  const navigate = useNavigate()
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,23 +28,27 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col bg-surface-100 pt-safe-top pb-safe-bottom relative overflow-hidden">
       {/* Wave decoration at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-36">
-        <svg viewBox="0 0 400 150" className="w-full h-full" preserveAspectRatio="none">
+      <div className="absolute bottom-0 left-0 right-0 h-48">
+        <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
           <path
-            d="M0,40 C60,60 120,20 200,40 C280,60 340,30 400,50 L400,150 L0,150 Z"
-            fill="#FED7AA"
+            d="M0,80 Q100,40 200,80 T400,80 L400,200 L0,200 Z"
+            fill="#FFEDD5"
           />
           <path
-            d="M0,65 C80,85 160,45 240,70 C300,90 360,60 400,75 L400,150 L0,150 Z"
+            d="M0,100 Q100,60 200,100 T400,100 L400,200 L0,200 Z"
             fill="#FDBA74"
           />
           <path
-            d="M0,90 C100,115 180,80 260,100 C320,115 370,95 400,105 L400,150 L0,150 Z"
+            d="M0,120 Q100,80 200,120 T400,120 L400,200 L0,200 Z"
             fill="#FB923C"
           />
           <path
-            d="M0,115 C80,130 160,110 240,125 C300,137 350,123 400,130 L400,150 L0,150 Z"
+            d="M0,140 Q100,100 200,140 T400,140 L400,200 L0,200 Z"
             fill="#F97316"
+          />
+          <path
+            d="M0,160 Q100,125 200,160 T400,160 L400,200 L0,200 Z"
+            fill="#EA580C"
           />
         </svg>
       </div>
@@ -107,6 +113,7 @@ export function LoginPage() {
           <div className="text-right pt-1">
             <button
               type="button"
+              onClick={() => navigate('/forgot-password')}
               className="text-orange-500 text-sm font-medium"
             >
               Esqueceu a senha?
