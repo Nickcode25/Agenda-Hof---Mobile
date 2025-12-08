@@ -21,7 +21,7 @@ import {
   getMinutes,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, ChevronDown, Phone, MessageCircle, Check, X, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ChevronDown, Phone, MessageCircle, Check, X as XIcon, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -44,11 +44,11 @@ type AgendaItem = {
 }
 
 const statusColors: Record<string, string> = {
-  scheduled: 'bg-orange-500',
-  confirmed: 'bg-green-500',
-  completed: 'bg-gray-400',
-  done: 'bg-gray-400',
-  cancelled: 'bg-red-500',
+  scheduled: 'bg-scheduled',        // Laranja suave (#FF9800)
+  confirmed: 'bg-info',             // Azul (#2196F3)
+  completed: 'bg-success',          // Verde institucional (#4CAF50)
+  done: 'bg-success',               // Verde institucional (#4CAF50)
+  cancelled: 'bg-error',            // Vermelho (#F44336)
 }
 
 // Horários do dia (7h às 24h) com intervalos de 30 min
@@ -372,24 +372,35 @@ export function AgendaPage() {
 
   return (
     <div className="h-screen bg-white flex flex-col pb-16 overflow-hidden">
-      {/* Top Bar - Similar ao app */}
-      <div className="bg-orange-500 text-white px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      {/* Top Bar - Compacto para mobile */}
+      <div className="bg-primary-500 text-white px-3 py-2.5 flex items-center justify-between safe-area-top">
+        <button
+          onClick={openDatePicker}
+          className="flex items-center gap-1 active:opacity-80"
+        >
+          <span className="text-sm font-semibold capitalize">
+            {format(selectedDate, "d MMM", { locale: ptBR })}
+          </span>
+          <ChevronDown className="w-4 h-4 opacity-80" />
+        </button>
+
+        {/* Botão Hoje - aparece se não for hoje */}
+        {!isToday(selectedDate) && (
           <button
-            onClick={openDatePicker}
-            className="flex items-center gap-1 text-sm font-medium"
+            onClick={goToToday}
+            className="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full active:bg-white/30"
           >
-            <span>{format(selectedDate, "EEE, d MMMM yyyy", { locale: ptBR })}</span>
-            <ChevronDown className="w-4 h-4" />
+            Hoje
           </button>
-        </div>
+        )}
+
         <div className="flex bg-white/20 rounded-lg p-0.5">
           {(['day', 'week'] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                viewMode === mode ? 'bg-white text-orange-500' : 'text-white'
+                viewMode === mode ? 'bg-white text-primary-500' : 'text-white/90'
               }`}
             >
               {mode === 'day' ? 'Dia' : 'Semana'}
@@ -398,32 +409,32 @@ export function AgendaPage() {
         </div>
       </div>
 
-      {/* Trial Banner */}
+      {/* Trial Banner - Mais compacto */}
       <TrialBanner />
 
-      {/* Week Days Header - Sempre visível em day view */}
+      {/* Week Days Header - Compacto com swipe */}
       {viewMode === 'day' && (
-        <div className="bg-white border-b border-surface-200">
+        <div className="bg-white border-b border-surface-100">
           <div className="flex">
-            <div className="w-12 flex-shrink-0" />
+            <div className="w-11 flex-shrink-0" />
             {weekDays.map((day) => (
               <button
                 key={day.toISOString()}
                 onClick={() => setSelectedDate(day)}
-                className={`flex-1 py-2 text-center ${
-                  isSameDay(day, selectedDate) ? 'bg-orange-50' : ''
+                className={`flex-1 py-1.5 text-center transition-colors ${
+                  isSameDay(day, selectedDate) ? 'bg-primary-50' : ''
                 }`}
               >
-                <div className="text-[10px] uppercase font-medium text-surface-400">
+                <div className="text-[9px] uppercase font-semibold text-surface-400 mb-0.5">
                   {format(day, 'EEEEE', { locale: ptBR })}
                 </div>
                 <div
-                  className={`w-8 h-8 mx-auto flex items-center justify-center rounded-full text-sm font-semibold ${
+                  className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
                     isToday(day)
-                      ? 'bg-orange-500 text-white'
+                      ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40'
                       : isSameDay(day, selectedDate)
-                      ? 'bg-orange-100 text-orange-600'
-                      : 'text-surface-700'
+                      ? 'bg-primary-100 text-primary-600'
+                      : 'text-surface-600'
                   }`}
                 >
                   {format(day, 'd')}
@@ -464,6 +475,7 @@ export function AgendaPage() {
               navigate={navigate}
               scrollRef={scrollRef}
               onUpdateStatus={updateAppointmentStatus}
+              isSelectedDateToday={isToday(selectedDate)}
             />
           )}
 
@@ -478,12 +490,13 @@ export function AgendaPage() {
         </>
       )}
 
-      {/* FAB */}
+      {/* FAB - 56px para touch target ideal no iOS */}
       <button
         onClick={() => navigate(`/appointment/new?date=${format(selectedDate, 'yyyy-MM-dd')}`)}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg flex items-center justify-center active:bg-orange-600 z-10"
+        className="fixed bottom-20 right-4 w-14 h-14 bg-primary-500 text-white rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center active:scale-95 active:bg-primary-600 z-10 transition-transform"
+        aria-label="Novo agendamento"
       >
-        <Plus className="w-6 h-6" />
+        <Plus className="w-7 h-7" strokeWidth={2.5} />
       </button>
 
       {/* Date Picker Modal */}
@@ -495,7 +508,7 @@ export function AgendaPage() {
           />
           <div className="relative bg-white rounded-2xl shadow-xl w-[90%] max-w-sm overflow-hidden">
             {/* Header do picker */}
-            <div className="bg-orange-500 text-white px-4 py-3 flex items-center justify-between">
+            <div className="bg-primary-500 text-white px-4 py-3 flex items-center justify-between">
               <button
                 onClick={() => setPickerMonth(subMonths(pickerMonth, 1))}
                 className="p-1"
@@ -538,9 +551,9 @@ export function AgendaPage() {
                     onClick={() => selectDate(day)}
                     className={`aspect-square flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
                       isToday(day)
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-primary-500 text-white'
                         : isSelected
-                        ? 'bg-orange-100 text-orange-700'
+                        ? 'bg-primary-100 text-primary-700'
                         : isCurrentMonth
                         ? 'text-surface-700 active:bg-surface-100'
                         : 'text-surface-300'
@@ -559,7 +572,7 @@ export function AgendaPage() {
                   setSelectedDate(new Date())
                   setShowDatePicker(false)
                 }}
-                className="w-full py-2 text-orange-500 font-medium text-sm"
+                className="w-full py-2 text-primary-500 font-medium text-sm"
               >
                 Ir para hoje
               </button>
@@ -573,7 +586,7 @@ export function AgendaPage() {
 
 // Cores por tipo de item
 const itemColors: Record<string, string> = {
-  appointment: 'bg-orange-500',
+  appointment: 'bg-primary-500',
   block: 'bg-sky-300', // Azul claro como no site
   commitment: 'bg-sky-500',
 }
@@ -584,16 +597,39 @@ function DayGridView({
   navigate,
   scrollRef,
   onUpdateStatus,
+  isSelectedDateToday,
 }: {
   items: AgendaItem[]
   navigate: (path: string) => void
   scrollRef: React.RefObject<HTMLDivElement>
   onUpdateStatus: (id: string, status: string) => Promise<void>
+  isSelectedDateToday: boolean
 }) {
   const [selectedItem, setSelectedItem] = useState<AgendaItem | null>(null)
   const [patientPhone, setPatientPhone] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const [loadingPhone, setLoadingPhone] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Atualizar horário atual a cada minuto
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Atualiza a cada 1 minuto
+    return () => clearInterval(interval)
+  }, [])
+
+  // Calcular posição da linha do horário atual
+  const nowLinePosition = useMemo(() => {
+    if (!isSelectedDateToday) return null
+    const now = currentTime
+    const hours = getHours(now)
+    const minutes = getMinutes(now)
+    // Só mostrar se estiver no range visível (7h-24h)
+    if (hours < 7) return null
+    const minutesFrom7 = (hours - 7) * 60 + minutes
+    return (minutesFrom7 / 15) * PIXELS_PER_15MIN
+  }, [currentTime, isSelectedDateToday])
 
   // Buscar telefone do paciente quando seleciona um item
   const handleSelectItem = async (item: AgendaItem) => {
@@ -649,31 +685,17 @@ function DayGridView({
     setSelectedItem(null)
   }
 
-  // Linha "dia todo"
-  const allDayRow = (
-    <div className="flex border-b border-surface-200 bg-surface-50">
-      <div className="w-12 flex-shrink-0 py-2 text-right pr-2 text-xs text-surface-400">
-        dia todo
-      </div>
-      <div className="flex-1 border-l border-surface-200 py-2 px-1">
-        {/* Agendamentos de dia todo iriam aqui */}
-      </div>
-    </div>
-  )
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {allDayRow}
-
       {/* Grid de horários */}
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <div className="flex">
           {/* Coluna de horários */}
-          <div className="w-12 flex-shrink-0 bg-white">
+          <div className="w-11 flex-shrink-0 bg-white">
             {TIME_SLOTS.map((slot) => (
               <div
                 key={slot.label}
-                className="border-b border-surface-100 text-right pr-2 text-xs text-surface-400 flex items-start justify-end pt-0.5"
+                className="border-b border-surface-100 text-right pr-1.5 text-[11px] text-surface-400 flex items-start justify-end pt-0.5"
                 style={{ height: SLOT_HEIGHT }}
               >
                 {slot.label}
@@ -687,10 +709,23 @@ function DayGridView({
             {TIME_SLOTS.map((slot) => (
               <div
                 key={slot.label}
-                className={`border-b ${slot.minute === 0 ? 'border-surface-200' : 'border-surface-100'}`}
+                className={`border-b ${slot.minute === 0 ? 'border-surface-200' : 'border-surface-100/60'}`}
                 style={{ height: SLOT_HEIGHT }}
               />
             ))}
+
+            {/* Now Line - Linha do horário atual */}
+            {nowLinePosition !== null && (
+              <div
+                className="absolute left-0 right-0 z-20 pointer-events-none"
+                style={{ top: `${nowLinePosition}px` }}
+              >
+                <div className="relative flex items-center">
+                  <div className="w-2 h-2 bg-red-500 rounded-full -ml-1 shadow-sm" />
+                  <div className="flex-1 h-[2px] bg-red-500 shadow-sm" />
+                </div>
+              </div>
+            )}
 
             {/* Itens da Agenda (agendamentos, bloqueios, compromissos) */}
             {items.map((item) => {
@@ -704,10 +739,10 @@ function DayGridView({
               const height = (durationMinutes / 15) * PIXELS_PER_15MIN
               const isSmall = durationMinutes <= 15 // 15 min ou menos
 
-              // Definir cor baseada no tipo e status
+              // Definir cor baseada no tipo e status - cores mais suaves para bloqueios
               let bgColor = itemColors[item.type]
               if (item.type === 'appointment' && item.status) {
-                bgColor = statusColors[item.status] || 'bg-orange-500'
+                bgColor = statusColors[item.status] || 'bg-primary-500'
               }
 
               // Handler de clique baseado no tipo
@@ -722,7 +757,7 @@ function DayGridView({
                 <button
                   key={`${item.type}-${item.id}`}
                   onClick={handleClick}
-                  className={`absolute left-1 right-1 rounded-lg text-white text-left overflow-hidden ${bgColor} ${isSmall ? 'px-2 py-1' : 'p-2'}`}
+                  className={`absolute left-1.5 right-1.5 rounded-lg text-white text-left overflow-hidden shadow-sm ${bgColor} ${isSmall ? 'px-2 py-0.5' : 'p-2'} active:opacity-90 transition-opacity`}
                   style={{
                     top: `${top}px`,
                     height: `${Math.max(height, PIXELS_PER_15MIN)}px`,
@@ -730,13 +765,11 @@ function DayGridView({
                 >
                   {isSmall ? (
                     // Layout compacto para slots pequenos (15 min)
-                    // Formato: 14:00 - 14:15 - Nome do Paciente
                     <div className="flex items-center gap-1 h-full">
-                      <span className="text-xs font-medium opacity-90 whitespace-nowrap">
-                        {format(item.start, 'HH:mm')} - {format(item.end, 'HH:mm')}
+                      <span className="text-[10px] font-medium opacity-90 whitespace-nowrap">
+                        {format(item.start, 'HH:mm')}
                       </span>
-                      <span className="text-xs opacity-90">-</span>
-                      <span className="font-semibold text-sm truncate flex-1">
+                      <span className="font-semibold text-xs truncate flex-1">
                         {item.title}
                       </span>
                     </div>
@@ -779,12 +812,12 @@ function DayGridView({
                   <span
                     className={`text-xs font-medium px-3 py-1 rounded-full ${
                       selectedItem.status === 'confirmed'
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-info-light text-info-dark'
                         : selectedItem.status === 'cancelled'
-                        ? 'bg-red-100 text-red-700'
+                        ? 'bg-error-light text-error-dark'
                         : selectedItem.status === 'completed' || selectedItem.status === 'done'
-                        ? 'bg-gray-100 text-gray-700'
-                        : 'bg-orange-100 text-orange-700'
+                        ? 'bg-success-light text-success-dark'
+                        : 'bg-scheduled-light text-scheduled-dark'
                     }`}
                   >
                     {selectedItem.status === 'scheduled' && 'Agendado'}
@@ -801,20 +834,20 @@ function DayGridView({
               {/* Contato (se tiver telefone) */}
               {loadingPhone ? (
                 <div className="flex justify-center py-3">
-                  <div className="w-5 h-5 border-2 border-surface-300 border-t-orange-500 rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-surface-300 border-t-primary-500 rounded-full animate-spin" />
                 </div>
               ) : patientPhone && (
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleCall(patientPhone)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-xl font-medium active:bg-green-600"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-success text-white rounded-xl font-medium active:bg-success-dark"
                   >
                     <Phone className="w-5 h-5" />
                     Ligar
                   </button>
                   <button
                     onClick={() => handleWhatsApp(patientPhone)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#25D366] text-white rounded-xl font-medium active:bg-[#1da851]"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-whatsapp text-white rounded-xl font-medium active:bg-whatsapp-hover"
                   >
                     <MessageCircle className="w-5 h-5" />
                     WhatsApp
@@ -829,7 +862,7 @@ function DayGridView({
                     <button
                       onClick={() => handleConfirm(selectedItem)}
                       disabled={updating}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-500 text-white rounded-xl font-medium active:bg-blue-600 disabled:opacity-50"
+                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-info text-white rounded-xl font-medium active:bg-info-dark disabled:opacity-50"
                     >
                       <Check className="w-5 h-5" />
                       {updating ? 'Atualizando...' : 'Confirmar'}
@@ -838,9 +871,9 @@ function DayGridView({
                   <button
                     onClick={() => handleCancel(selectedItem)}
                     disabled={updating}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-500 text-white rounded-xl font-medium active:bg-red-600 disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-error text-white rounded-xl font-medium active:bg-error-dark disabled:opacity-50"
                   >
-                    <X className="w-5 h-5" />
+                    <XIcon className="w-5 h-5" />
                     {updating ? 'Atualizando...' : 'Cancelar'}
                   </button>
                 </div>
@@ -902,7 +935,7 @@ function WeekGridView({
           <div
             key={day.toISOString()}
             className={`flex-1 text-center py-1.5 border-l border-surface-100 ${
-              isToday(day) ? 'bg-orange-50' : ''
+              isToday(day) ? 'bg-primary-50' : ''
             }`}
           >
             <div className="text-[10px] uppercase font-medium text-surface-400">
@@ -910,7 +943,7 @@ function WeekGridView({
             </div>
             <div
               className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold ${
-                isToday(day) ? 'bg-orange-500 text-white' : 'text-surface-900'
+                isToday(day) ? 'bg-primary-500 text-white' : 'text-surface-900'
               }`}
             >
               {format(day, 'd')}
@@ -943,7 +976,7 @@ function WeekGridView({
               <div
                 key={day.toISOString()}
                 className={`flex-1 relative border-l border-surface-100 ${
-                  isToday(day) ? 'bg-orange-50/30' : ''
+                  isToday(day) ? 'bg-primary-50/30' : ''
                 }`}
                 style={{ minWidth: '40px' }}
               >
@@ -970,7 +1003,7 @@ function WeekGridView({
                   // Definir cor baseada no tipo e status
                   let bgColor = itemColors[item.type]
                   if (item.type === 'appointment' && item.status) {
-                    bgColor = statusColors[item.status] || 'bg-orange-500'
+                    bgColor = statusColors[item.status] || 'bg-primary-500'
                   }
 
                   // Handler de clique

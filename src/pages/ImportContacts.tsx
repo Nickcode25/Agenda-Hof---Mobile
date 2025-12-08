@@ -193,8 +193,8 @@ export function ImportContactsPage() {
         <Header title="Importar Contatos" showBack />
 
         <div className="flex flex-col items-center justify-center px-6 pt-20">
-          <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center mb-6">
-            <Smartphone className="w-12 h-12 text-orange-500" />
+          <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mb-6">
+            <Smartphone className="w-12 h-12 text-primary-500" />
           </div>
 
           <h2 className="text-xl font-semibold text-surface-900 text-center mb-2">
@@ -367,14 +367,14 @@ export function ImportContactsPage() {
             {selectedContacts.size > 0 ? (
               <button
                 onClick={deselectAll}
-                className="text-sm text-orange-600 font-medium"
+                className="text-sm text-primary-600 font-medium"
               >
                 Limpar
               </button>
             ) : (
               <button
                 onClick={selectAllNew}
-                className="text-sm text-orange-600 font-medium"
+                className="text-sm text-primary-600 font-medium"
               >
                 Selecionar todos
               </button>
@@ -397,7 +397,7 @@ export function ImportContactsPage() {
             {/* Novos contatos */}
             {newContacts.length > 0 && (
               <div>
-                <h2 className="text-xs font-semibold text-orange-500 uppercase tracking-wider px-1 mb-2">
+                <h2 className="text-xs font-semibold text-primary-500 uppercase tracking-wider px-1 mb-2">
                   Novos Contatos ({newContacts.length})
                 </h2>
                 <div className="bg-white rounded-2xl overflow-hidden divide-y divide-surface-100">
@@ -410,7 +410,7 @@ export function ImportContactsPage() {
                       <div
                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                           selectedContacts.has(contact.id)
-                            ? 'bg-orange-500 border-orange-500'
+                            ? 'bg-primary-500 border-primary-500'
                             : 'border-surface-300'
                         }`}
                       >

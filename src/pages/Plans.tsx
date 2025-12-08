@@ -89,7 +89,7 @@ export function PlansPage() {
       <div className="min-h-screen bg-surface-50 pb-20">
         <Header title="Planos" showBack />
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
         </div>
       </div>
     )
@@ -109,14 +109,14 @@ export function PlansPage() {
 
         {/* Status atual */}
         {isOnTrial && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-orange-600" />
-              <span className="font-medium text-orange-800">
+              <Clock className="w-5 h-5 text-primary-600" />
+              <span className="font-medium text-primary-800">
                 Período de teste - {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
               </span>
             </div>
-            <p className="text-sm text-orange-600 mt-1">
+            <p className="text-sm text-primary-600 mt-1">
               Acesse nosso site para assinar um plano
             </p>
           </div>
@@ -170,13 +170,13 @@ export function PlansPage() {
               <div
                 key={plan.id}
                 className={`card relative overflow-hidden ${
-                  plan.popular ? 'border-2 border-orange-500' : ''
-                } ${isCurrent ? 'ring-2 ring-green-500' : ''}`}
+                  plan.popular ? 'border-2 border-primary-500' : ''
+                } ${isCurrent ? 'ring-2 ring-success' : ''}`}
               >
                 {/* Badge Popular */}
                 {plan.popular && (
                   <div className="absolute -top-0 -right-0">
-                    <div className="bg-orange-500 text-white text-xs font-semibold px-3 py-1.5 rounded-bl-xl flex items-center gap-1">
+                    <div className="bg-primary-500 text-white text-xs font-semibold px-3 py-1.5 rounded-bl-xl flex items-center gap-1">
                       <Crown className="w-3 h-3" />
                       Mais Popular
                     </div>
@@ -195,9 +195,9 @@ export function PlansPage() {
 
                 {/* Ícone */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                  isCurrent ? 'bg-green-100' : plan.popular ? 'bg-orange-100' : 'bg-surface-100'
+                  isCurrent ? 'bg-success-light' : plan.popular ? 'bg-primary-100' : 'bg-surface-100'
                 } ${isCurrent || plan.popular ? 'mt-6' : ''}`}>
-                  <Crown className={`w-6 h-6 ${isCurrent ? 'text-green-500' : plan.popular ? 'text-orange-500' : 'text-surface-500'}`} />
+                  <Crown className={`w-6 h-6 ${isCurrent ? 'text-success' : plan.popular ? 'text-primary-500' : 'text-surface-500'}`} />
                 </div>
 
                 {/* Nome e descrição */}
@@ -240,7 +240,7 @@ export function PlansPage() {
         <div className="mt-6">
           <button
             onClick={handleOpenWebsite}
-            className="w-full py-3 rounded-xl bg-orange-500 text-white font-medium flex items-center justify-center gap-2 active:bg-orange-600 transition-colors"
+            className="w-full py-3 rounded-xl bg-primary-500 text-white font-medium flex items-center justify-center gap-2 active:bg-primary-600 transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             Assinar pelo site

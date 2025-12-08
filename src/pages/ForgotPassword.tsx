@@ -58,7 +58,7 @@ export function ForgotPasswordPage() {
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+              className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
             >
               Voltar para o login
             </button>
@@ -109,8 +109,8 @@ export function ForgotPasswordPage() {
       {/* Content */}
       <div className="flex-1 flex flex-col justify-center px-6 relative z-10 pb-52">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-            <Mail className="w-8 h-8 text-orange-500" />
+          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+            <Mail className="w-8 h-8 text-primary-500" />
           </div>
           <h1 className="text-2xl font-bold text-surface-800 text-center">Esqueceu a senha?</h1>
           <p className="text-surface-400 mt-2 text-sm text-center max-w-xs">
@@ -120,7 +120,7 @@ export function ForgotPasswordPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Mail className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Mail className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type="email"
               value={email}
@@ -139,7 +139,7 @@ export function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
           >
             {loading ? (
               <>

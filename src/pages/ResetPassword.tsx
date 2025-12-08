@@ -77,7 +77,7 @@ export function ResetPasswordPage() {
             <p className="text-surface-500 mb-8">{tokenError}</p>
             <button
               onClick={() => navigate('/forgot-password')}
-              className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+              className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
             >
               Solicitar novo link
             </button>
@@ -99,7 +99,7 @@ export function ResetPasswordPage() {
             <p className="text-surface-500 mb-8">
               Sua senha foi alterada com sucesso. Você será redirecionado para o login...
             </p>
-            <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+            <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
           </div>
         </div>
       </div>
@@ -137,8 +137,8 @@ export function ResetPasswordPage() {
       {/* Content */}
       <div className="flex-1 flex flex-col justify-center px-6 relative z-10 pb-52">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-            <Lock className="w-8 h-8 text-orange-500" />
+          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+            <Lock className="w-8 h-8 text-primary-500" />
           </div>
           <h1 className="text-2xl font-bold text-surface-800 text-center">Nova senha</h1>
           <p className="text-surface-400 mt-2 text-sm text-center max-w-xs">
@@ -149,7 +149,7 @@ export function ResetPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* New Password */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Lock className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -170,7 +170,7 @@ export function ResetPasswordPage() {
 
           {/* Confirm Password */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Lock className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
@@ -196,7 +196,7 @@ export function ResetPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform mt-4"
+            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform mt-4"
           >
             {loading ? (
               <>

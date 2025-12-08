@@ -68,7 +68,7 @@ export function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Email Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <User className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <User className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type="email"
               value={email}
@@ -82,7 +82,7 @@ export function LoginPage() {
 
           {/* Password Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Lock className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -114,7 +114,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => navigate('/forgot-password')}
-              className="text-orange-500 text-sm font-medium"
+              className="text-primary-500 text-sm font-medium"
             >
               Esqueceu a senha?
             </button>
@@ -124,7 +124,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
           >
             {loading ? (
               <>
@@ -142,7 +142,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => navigate('/register')}
-              className="text-orange-500 font-medium"
+              className="text-primary-500 font-medium"
             >
               Cadastre-se
             </button>

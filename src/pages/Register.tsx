@@ -392,7 +392,7 @@ export function RegisterPage() {
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+              className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
             >
               Fazer login
             </button>
@@ -430,8 +430,8 @@ export function RegisterPage() {
         {/* Content */}
         <div className="flex-1 flex flex-col justify-center px-6 relative z-10 pb-52">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-              <Mail className="w-8 h-8 text-orange-500" />
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+              <Mail className="w-8 h-8 text-primary-500" />
             </div>
             <h1 className="text-2xl font-bold text-surface-800 text-center">Verificar email</h1>
             <p className="text-surface-400 mt-2 text-sm text-center max-w-xs">
@@ -451,7 +451,7 @@ export function RegisterPage() {
                 value={digit}
                 onChange={(e) => handleCodeInput(index, e.target.value)}
                 onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-bold bg-white border border-surface-200 rounded-xl focus:border-orange-500 focus:outline-none"
+                className="w-12 h-14 text-center text-2xl font-bold bg-white border border-surface-200 rounded-xl focus:border-primary-500 focus:outline-none"
               />
             ))}
           </div>
@@ -459,7 +459,7 @@ export function RegisterPage() {
           {/* Timer */}
           <p className="text-center text-surface-400 text-sm mb-4">
             {timeLeft > 0 ? (
-              <>Código expira em <span className="font-medium text-orange-500">{formatTime(timeLeft)}</span></>
+              <>Código expira em <span className="font-medium text-primary-500">{formatTime(timeLeft)}</span></>
             ) : (
               <span className="text-red-500">Código expirado</span>
             )}
@@ -473,7 +473,7 @@ export function RegisterPage() {
           <button
             onClick={handleVerifyCode}
             disabled={loading || inputCode.join('').length !== 6}
-            className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
+            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
           >
             {loading ? (
               <>
@@ -489,7 +489,7 @@ export function RegisterPage() {
           <button
             onClick={handleResendCode}
             disabled={!canResend || loading}
-            className={`mt-4 text-sm font-medium ${canResend ? 'text-orange-500' : 'text-surface-400'}`}
+            className={`mt-4 text-sm font-medium ${canResend ? 'text-primary-500' : 'text-surface-400'}`}
           >
             {loading ? 'Enviando...' : 'Reenviar código'}
           </button>
@@ -534,7 +534,7 @@ export function RegisterPage() {
         <form onSubmit={handleSubmitForm} className="space-y-3">
           {/* Name Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <User className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <User className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type="text"
               value={name}
@@ -549,7 +549,7 @@ export function RegisterPage() {
           {/* Email Input */}
           <div>
             <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-              <Mail className="w-5 h-5 text-orange-500 flex-shrink-0" />
+              <Mail className="w-5 h-5 text-primary-500 flex-shrink-0" />
               <input
                 type="email"
                 value={email}
@@ -564,7 +564,7 @@ export function RegisterPage() {
               <button
                 type="button"
                 onClick={() => { setEmail(emailSuggestion); setEmailSuggestion('') }}
-                className="text-xs text-orange-500 mt-1 ml-1"
+                className="text-xs text-primary-500 mt-1 ml-1"
               >
                 Você quis dizer {emailSuggestion}?
               </button>
@@ -582,10 +582,10 @@ export function RegisterPage() {
             }`}>
               <Mail className={`w-5 h-5 flex-shrink-0 ${
                 !confirmEmail
-                  ? 'text-orange-500'
+                  ? 'text-primary-500'
                   : email.trim().toLowerCase() === confirmEmail.trim().toLowerCase()
-                  ? 'text-green-500'
-                  : 'text-red-500'
+                  ? 'text-success'
+                  : 'text-error'
               }`} />
               <input
                 type="email"
@@ -612,7 +612,7 @@ export function RegisterPage() {
 
           {/* Phone Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Phone className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Phone className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type="tel"
               value={phone}
@@ -626,7 +626,7 @@ export function RegisterPage() {
 
           {/* Password Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Lock className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type={showPassword ? 'text' : 'password'}
               value={password}
@@ -702,7 +702,7 @@ export function RegisterPage() {
 
           {/* Confirm Password Input */}
           <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 border border-surface-200">
-            <Lock className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <Lock className="w-5 h-5 text-primary-500 flex-shrink-0" />
             <input
               type={showConfirmPassword ? 'text' : 'password'}
               value={confirmPassword}
@@ -729,7 +729,7 @@ export function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform mt-2"
+            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform mt-2"
           >
             {loading ? (
               <>
@@ -747,7 +747,7 @@ export function RegisterPage() {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="text-orange-500 font-medium"
+              className="text-primary-500 font-medium"
             >
               Faça login
             </button>

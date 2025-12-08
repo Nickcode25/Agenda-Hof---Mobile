@@ -12,13 +12,13 @@ export function Header({ title, showBack = false, rightAction }: HeaderProps) {
   const navigate = useNavigate()
 
   return (
-    <header className="sticky top-0 z-10 bg-orange-500 pt-safe-top shadow-md">
+    <header className="sticky top-0 z-10 bg-primary-500 pt-safe-top shadow-md">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2 min-w-[48px]">
           {showBack && (
             <button
               onClick={() => navigate(-1)}
-              className="p-2 -ml-2 rounded-full active:bg-orange-600"
+              className="p-2 -ml-2 rounded-full active:bg-primary-600"
             >
               <ChevronLeft className="w-6 h-6 text-white" />
             </button>

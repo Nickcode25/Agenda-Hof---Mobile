@@ -42,13 +42,13 @@ export function SettingsPage() {
 
         {/* Plano atual */}
         <div className={`mt-4 p-3 rounded-xl flex items-center justify-between ${
-          isOnTrial ? 'bg-orange-50 border border-orange-200' : 'bg-surface-50'
+          isOnTrial ? 'bg-primary-50 border border-primary-200' : 'bg-surface-50'
         }`}>
           <div className="flex items-center gap-2">
             {isOnTrial ? (
-              <Clock className="w-5 h-5 text-orange-500" />
+              <Clock className="w-5 h-5 text-primary-500" />
             ) : (
-              <Crown className={`w-5 h-5 ${isActive ? 'text-orange-500' : 'text-surface-400'}`} />
+              <Crown className={`w-5 h-5 ${isActive ? 'text-primary-500' : 'text-surface-400'}`} />
             )}
             <div>
               <p className="text-sm font-medium text-surface-900">{planName}</p>
@@ -67,10 +67,10 @@ export function SettingsPage() {
             onClick={handleOpenWebsite}
             className={`text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 ${
               isOnTrial
-                ? 'bg-orange-500 text-white'
+                ? 'bg-primary-500 text-white'
                 : isActive
                   ? 'bg-surface-200 text-surface-600'
-                  : 'bg-orange-500 text-white'
+                  : 'bg-primary-500 text-white'
             }`}
           >
             {isOnTrial ? 'Ver planos' : isActive ? 'Gerenciar' : 'Assinar'}
@@ -87,8 +87,8 @@ export function SettingsPage() {
             className="w-full flex items-center justify-between p-4 active:bg-surface-50"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-orange-600" />
+              <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-primary-600" />
               </div>
               <div className="text-left">
                 <span className="text-surface-900 block">Planos</span>
@@ -100,8 +100,8 @@ export function SettingsPage() {
 
           <button className="w-full flex items-center justify-between p-4 active:bg-surface-50">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center">
-                <Bell className="w-5 h-5 text-blue-600" />
+              <div className="w-9 h-9 bg-info-light rounded-full flex items-center justify-center">
+                <Bell className="w-5 h-5 text-info-dark" />
               </div>
               <span className="text-surface-900">Notificações</span>
             </div>
@@ -110,8 +110,8 @@ export function SettingsPage() {
 
           <button className="w-full flex items-center justify-between p-4 active:bg-surface-50">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center">
-                <Shield className="w-5 h-5 text-green-600" />
+              <div className="w-9 h-9 bg-success-light rounded-full flex items-center justify-center">
+                <Shield className="w-5 h-5 text-success-dark" />
               </div>
               <span className="text-surface-900">Privacidade</span>
             </div>

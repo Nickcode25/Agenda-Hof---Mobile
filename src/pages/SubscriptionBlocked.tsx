@@ -65,12 +65,12 @@ export function SubscriptionBlockedPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {/* Ícone */}
         <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${
-          icon === 'clock' ? 'bg-orange-100' : 'bg-red-100'
+          icon === 'clock' ? 'bg-primary-100' : 'bg-error-light'
         }`}>
           {icon === 'clock' ? (
-            <Clock className="w-12 h-12 text-orange-500" />
+            <Clock className="w-12 h-12 text-primary-500" />
           ) : (
-            <AlertTriangle className="w-12 h-12 text-red-500" />
+            <AlertTriangle className="w-12 h-12 text-error" />
           )}
         </div>
 

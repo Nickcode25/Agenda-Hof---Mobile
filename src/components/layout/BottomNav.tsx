@@ -9,24 +9,30 @@ const navItems = [
 
 export function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-200 pb-safe-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-      <div className="flex items-center justify-around h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-100 pb-safe-bottom shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
+      <div className="flex items-center justify-around h-14">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 w-full h-full transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
                 isActive
-                  ? 'text-orange-500'
-                  : 'text-surface-400 active:text-orange-400'
+                  ? 'text-primary-500'
+                  : 'text-surface-400 active:text-primary-400'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <item.icon className="w-6 h-6" strokeWidth={isActive ? 2 : 1.5} />
-                <span className={`text-xs ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                <item.icon
+                  className="w-5 h-5"
+                  strokeWidth={isActive ? 2.5 : 1.5}
+                  fill={isActive ? 'currentColor' : 'none'}
+                />
+                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+                  {item.label}
+                </span>
               </>
             )}
           </NavLink>
