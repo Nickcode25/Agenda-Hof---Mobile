@@ -43,10 +43,10 @@ export function SubscriptionBlockedPage() {
           message: 'Sua assinatura foi cancelada. Assine novamente para continuar usando o AgendaHOF.',
           icon: 'alert',
         }
-      case 'suspended':
+      case 'expired':
         return {
-          title: 'Assinatura suspensa',
-          message: 'Sua assinatura está suspensa por falta de pagamento. Regularize para continuar usando o AgendaHOF.',
+          title: 'Assinatura expirada',
+          message: 'Sua assinatura expirou. Renove seu plano para continuar usando o AgendaHOF.',
           icon: 'alert',
         }
       default:

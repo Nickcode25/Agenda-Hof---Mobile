@@ -72,7 +72,7 @@ export function PlansPage() {
 
   const getCurrentPlanId = (): string | null => {
     if (!subscription || !isActive) return null
-    const amount = parseFloat(subscription.plan_amount)
+    const amount = subscription.plan_amount
     if (amount <= 49.90) return 'basico'
     if (amount <= 79.90) return 'pro'
     return 'premium'
