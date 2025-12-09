@@ -1,53 +1,108 @@
 import { LocalNotifications, ScheduleOptions } from '@capacitor/local-notifications'
-import { PushNotifications } from '@capacitor/push-notifications'
 import { Capacitor } from '@capacitor/core'
+
+// Chave para armazenar configurações de notificação no localStorage
+const NOTIFICATION_SETTINGS_KEY = 'agendahof_notification_settings'
+
+// Interface para configurações de notificação
+export interface NotificationSettings {
+  enabled: boolean
+  minutesBefore: number // 30 minutos por padrão
+  permission: 'granted' | 'denied' | 'default' | 'unknown'
+}
+
+// Configurações padrão
+const DEFAULT_SETTINGS: NotificationSettings = {
+  enabled: false,
+  minutesBefore: 30,
+  permission: 'unknown',
+}
 
 // Verifica se está em plataforma nativa
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform()
 }
 
-// Inicializa notificações push
-export async function initPushNotifications(): Promise<string | null> {
-  if (!isNativePlatform()) {
-    console.log('Push notifications only work on native platforms')
-    return null
-  }
-
+// Obtém configurações de notificação
+export function getNotificationSettings(): NotificationSettings {
   try {
-    // Solicita permissão
-    const permStatus = await PushNotifications.requestPermissions()
+    const stored = localStorage.getItem(NOTIFICATION_SETTINGS_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (error) {
+    console.error('Error reading notification settings:', error)
+  }
+  return DEFAULT_SETTINGS
+}
 
-    if (permStatus.receive !== 'granted') {
-      console.log('Push notification permission denied')
-      return null
+// Salva configurações de notificação
+export function saveNotificationSettings(settings: NotificationSettings): void {
+  try {
+    localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings))
+  } catch (error) {
+    console.error('Error saving notification settings:', error)
+  }
+}
+
+// Verifica status da permissão de notificação
+export async function checkNotificationPermission(): Promise<'granted' | 'denied' | 'default'> {
+  if (isNativePlatform()) {
+    try {
+      const status = await LocalNotifications.checkPermissions()
+      if (status.display === 'granted') return 'granted'
+      if (status.display === 'denied') return 'denied'
+      return 'default'
+    } catch (error) {
+      console.error('Error checking native notification permission:', error)
+      return 'default'
+    }
+  } else {
+    // Web - usa API de Notificações do navegador
+    if (!('Notification' in window)) {
+      return 'denied'
+    }
+    return Notification.permission as 'granted' | 'denied' | 'default'
+  }
+}
+
+// Solicita permissão de notificação
+export async function requestNotificationPermission(): Promise<'granted' | 'denied' | 'default'> {
+  if (isNativePlatform()) {
+    try {
+      const status = await LocalNotifications.requestPermissions()
+      const permission = status.display === 'granted' ? 'granted' : 'denied'
+
+      // Atualiza configurações
+      const settings = getNotificationSettings()
+      settings.permission = permission
+      if (permission === 'granted') {
+        settings.enabled = true
+      }
+      saveNotificationSettings(settings)
+
+      return permission
+    } catch (error) {
+      console.error('Error requesting native notification permission:', error)
+      return 'denied'
+    }
+  } else {
+    // Web - usa API de Notificações do navegador
+    if (!('Notification' in window)) {
+      return 'denied'
     }
 
-    // Registra para receber notificações
-    await PushNotifications.register()
+    const permission = await Notification.requestPermission()
 
-    // Configura listeners
-    PushNotifications.addListener('registration', (token) => {
-      console.log('Push registration success, token:', token.value)
-      // Aqui você pode enviar o token para o backend
-    })
+    // Atualiza configurações
+    const settings = getNotificationSettings()
+    settings.permission = permission
+    if (permission === 'granted') {
+      settings.enabled = true
+    }
+    saveNotificationSettings(settings)
 
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('Push registration error:', error.error)
-    })
-
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('Push notification received:', notification)
-    })
-
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-      console.log('Push notification action performed:', notification)
-    })
-
-    return 'registered'
-  } catch (error) {
-    console.error('Error initializing push notifications:', error)
-    return null
+    return permission
   }
 }
 

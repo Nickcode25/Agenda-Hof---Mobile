@@ -1,13 +1,15 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { Header } from '@/components/layout/Header'
 import { Avatar } from '@/components/ui/Avatar'
-import { LogOut, ChevronRight, Bell, Shield, HelpCircle, CreditCard, Crown, Clock, ExternalLink } from 'lucide-react'
+import { LogOut, ChevronRight, Bell, CreditCard, Crown, Clock, ExternalLink } from 'lucide-react'
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const { isActive, planName, subscription, isOnTrial, trialDaysLeft } = useSubscription()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
@@ -98,32 +100,15 @@ export function SettingsPage() {
             <ExternalLink className="w-5 h-5 text-surface-400" />
           </button>
 
-          <button className="w-full flex items-center justify-between p-4 active:bg-surface-50">
+          <button
+            onClick={() => navigate('/notifications')}
+            className="w-full flex items-center justify-between p-4 active:bg-surface-50"
+          >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-info-light rounded-full flex items-center justify-center">
                 <Bell className="w-5 h-5 text-info-dark" />
               </div>
               <span className="text-surface-900">Notificações</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-surface-400" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 active:bg-surface-50">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-success-light rounded-full flex items-center justify-center">
-                <Shield className="w-5 h-5 text-success-dark" />
-              </div>
-              <span className="text-surface-900">Privacidade</span>
-            </div>
-            <ChevronRight className="w-5 h-5 text-surface-400" />
-          </button>
-
-          <button className="w-full flex items-center justify-between p-4 active:bg-surface-50">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center">
-                <HelpCircle className="w-5 h-5 text-purple-600" />
-              </div>
-              <span className="text-surface-900">Ajuda</span>
             </div>
             <ChevronRight className="w-5 h-5 text-surface-400" />
           </button>
@@ -142,40 +127,37 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {/* Logout Modal */}
+      {/* Logout Modal - iOS Style */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowLogoutModal(false)}
           />
 
-          {/* Modal */}
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl">
-            <div className="p-6 text-center">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LogOut className="w-7 h-7 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">
+          {/* Modal - iOS Style */}
+          <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl w-full max-w-[270px] shadow-xl overflow-hidden">
+            <div className="p-4 text-center">
+              <h3 className="text-[17px] font-semibold text-surface-900">
                 Sair da conta?
               </h3>
-              <p className="text-surface-500 text-sm">
+              <p className="text-[13px] text-surface-500 mt-1">
                 Você precisará fazer login novamente para acessar sua conta.
               </p>
             </div>
 
-            <div className="flex border-t border-surface-100">
+            <div className="border-t border-surface-200">
               <button
                 onClick={() => setShowLogoutModal(false)}
-                className="flex-1 py-4 text-surface-600 font-medium border-r border-surface-100 active:bg-surface-50"
+                className="w-full py-3 text-[17px] text-primary-500 font-normal border-b border-surface-200 active:bg-surface-100"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSignOut}
                 disabled={loggingOut}
-                className="flex-1 py-4 text-red-600 font-medium active:bg-red-50 disabled:opacity-50"
+                className="w-full py-3 text-[17px] text-red-500 font-semibold active:bg-surface-100 disabled:opacity-50"
               >
                 {loggingOut ? 'Saindo...' : 'Sair'}
               </button>

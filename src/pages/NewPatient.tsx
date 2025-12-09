@@ -17,7 +17,6 @@ export function NewPatientPage() {
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
-  const [notes, setNotes] = useState('')
 
   // Formatação de telefone
   const formatPhone = (value: string) => {
@@ -57,7 +56,6 @@ export function NewPatientPage() {
           email: email || null,
           cpf: cpf || null,
           birth_date: birthDate || null,
-          notes: notes || null,
           is_active: true,
           planned_procedures: '[]',
         })
@@ -152,20 +150,6 @@ export function NewPatientPage() {
             value={birthDate}
             onChange={(e) => setBirthDate(e.target.value)}
             className="input"
-          />
-        </div>
-
-        {/* Observações */}
-        <div>
-          <label className="block text-sm font-medium text-surface-700 mb-1.5">
-            Observações
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="input min-h-[100px] resize-none"
-            placeholder="Observações sobre o paciente..."
-            rows={4}
           />
         </div>
 

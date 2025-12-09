@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { AlertTriangle, Clock, ExternalLink, LogOut } from 'lucide-react'
@@ -7,11 +8,14 @@ const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
 export function SubscriptionBlockedPage() {
   const { subscription, trialExpired } = useSubscription()
   const { signOut } = useAuth()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   const handleSignOut = async () => {
-    if (confirm('Deseja sair da sua conta?')) {
-      await signOut()
-    }
+    setLoggingOut(true)
+    await signOut()
+    setLoggingOut(false)
+    setShowLogoutModal(false)
   }
 
   const handleOpenWebsite = () => {
@@ -93,13 +97,52 @@ export function SubscriptionBlockedPage() {
 
         {/* Botão de sair */}
         <button
-          onClick={handleSignOut}
+          onClick={() => setShowLogoutModal(true)}
           className="mt-4 text-surface-500 flex items-center gap-2 py-2"
         >
           <LogOut className="w-4 h-4" />
           <span className="text-sm">Sair da conta</span>
         </button>
       </div>
+
+      {/* Logout Modal - iOS Style */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowLogoutModal(false)}
+          />
+
+          {/* Modal - iOS Style */}
+          <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl w-full max-w-[270px] shadow-xl overflow-hidden">
+            <div className="p-4 text-center">
+              <h3 className="text-[17px] font-semibold text-surface-900">
+                Sair da conta?
+              </h3>
+              <p className="text-[13px] text-surface-500 mt-1">
+                Você precisará fazer login novamente para acessar sua conta.
+              </p>
+            </div>
+
+            <div className="border-t border-surface-200">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="w-full py-3 text-[17px] text-primary-500 font-normal border-b border-surface-200 active:bg-surface-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSignOut}
+                disabled={loggingOut}
+                className="w-full py-3 text-[17px] text-red-500 font-semibold active:bg-surface-100 disabled:opacity-50"
+              >
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="pb-8 px-6">

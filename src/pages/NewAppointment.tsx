@@ -26,7 +26,6 @@ export function NewAppointmentPage() {
   const [date, setDate] = useState(searchParams.get('date') || format(new Date(), 'yyyy-MM-dd'))
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('10:00')
-  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     fetchPatients()
@@ -86,9 +85,14 @@ export function NewAppointmentPage() {
     setLoading(true)
 
     try {
-      // Montar timestamps completos
-      const startDateTime = `${date}T${startTime}:00`
-      const endDateTime = `${date}T${endTime}:00`
+      // Criar datas no timezone de São Paulo e converter para ISO UTC
+      // Formato: "2025-12-08T09:00:00" interpretado como horário de São Paulo
+      const startDate = new Date(`${date}T${startTime}:00`)
+      const endDate = new Date(`${date}T${endTime}:00`)
+
+      // Converter para string ISO (o Supabase aceita timestamps com timezone)
+      const startDateTime = startDate.toISOString()
+      const endDateTime = endDate.toISOString()
 
       const { error: insertError } = await supabase
         .from('appointments')
@@ -100,8 +104,8 @@ export function NewAppointmentPage() {
           professional: user?.user_metadata?.full_name || user?.email || 'Profissional',
           start: startDateTime,
           end: endDateTime,
-          notes: notes || null,
           status: 'scheduled',
+          is_personal: false,
         })
 
       if (insertError) throw insertError
@@ -247,20 +251,6 @@ export function NewAppointmentPage() {
               required
             />
           </div>
-        </div>
-
-        {/* Observações */}
-        <div>
-          <label className="block text-sm font-medium text-surface-700 mb-1.5">
-            Observações
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="input min-h-[80px] resize-none"
-            placeholder="Observações sobre o agendamento..."
-            rows={3}
-          />
         </div>
 
         {error && (

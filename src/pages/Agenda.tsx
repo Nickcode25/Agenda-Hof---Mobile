@@ -21,12 +21,11 @@ import {
   getMinutes,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, ChevronDown, Phone, MessageCircle, Check, X as XIcon, User } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, ChevronDown, Phone, MessageCircle, Check, X as XIcon, User, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loading } from '@/components/ui/Loading'
-import { TrialBanner } from '@/components/TrialBanner'
 import type { Appointment, RecurringBlock } from '@/types/database'
 
 type ViewMode = 'day' | 'week'
@@ -158,10 +157,15 @@ export function AgendaPage() {
   const fetchAppointments = async () => {
     setLoading(true)
 
-    const startStr = format(dateRange.start, 'yyyy-MM-dd')
-    const endStr = format(dateRange.end, 'yyyy-MM-dd')
-    const dayStart = `${startStr}T00:00:00-03:00`
-    const dayEnd = `${endStr}T23:59:59-03:00`
+    // Criar datas de início e fim do período no timezone local
+    const startOfDay = new Date(dateRange.start)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(dateRange.end)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    // Converter para ISO string (UTC)
+    const dayStart = startOfDay.toISOString()
+    const dayEnd = endOfDay.toISOString()
 
     // Buscar agendamentos normais (is_personal = false ou null)
     const { data: appointmentsData, error: appointmentsError } = await supabase
@@ -187,7 +191,6 @@ export function AgendaPage() {
       .eq('is_personal', true)
       .gte('start', dayStart)
       .lte('start', dayEnd)
-      .neq('status', 'cancelled')
       .order('start', { ascending: true })
 
     if (!commitmentsError && commitmentsData) {
@@ -362,6 +365,22 @@ export function AgendaPage() {
     )
   }
 
+  const deleteAppointment = async (id: string) => {
+    const { error } = await supabase
+      .from('appointments')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Erro ao excluir agendamento:', error)
+      return false
+    }
+
+    // Remover da lista local
+    setAppointments((prev) => prev.filter((apt) => apt.id !== id))
+    return true
+  }
+
   // Dias da semana (começa na segunda)
   const weekDays = useMemo(() => {
     return eachDayOfInterval({
@@ -372,45 +391,46 @@ export function AgendaPage() {
 
   return (
     <div className="h-screen bg-white flex flex-col pb-16 overflow-hidden">
-      {/* Top Bar - Compacto para mobile */}
-      <div className="bg-primary-500 text-white px-3 py-2.5 flex items-center justify-between safe-area-top">
-        <button
-          onClick={openDatePicker}
-          className="flex items-center gap-1 active:opacity-80"
-        >
-          <span className="text-sm font-semibold capitalize">
-            {format(selectedDate, "d MMM", { locale: ptBR })}
-          </span>
-          <ChevronDown className="w-4 h-4 opacity-80" />
-        </button>
-
-        {/* Botão Hoje - aparece se não for hoje */}
-        {!isToday(selectedDate) && (
+      {/* Top Bar - Compacto para mobile com Dynamic Island spacing */}
+      <div className="bg-primary-500 text-white safe-area-top">
+        {/* Extra padding for Dynamic Island */}
+        <div className="h-2" />
+        <div className="px-3 py-2 flex items-center justify-between">
           <button
-            onClick={goToToday}
-            className="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full active:bg-white/30"
+            onClick={openDatePicker}
+            className="flex items-center gap-1 active:opacity-80"
           >
-            Hoje
+            <span className="text-sm font-semibold capitalize">
+              {format(selectedDate, "d MMM", { locale: ptBR })}
+            </span>
+            <ChevronDown className="w-4 h-4 opacity-80" />
           </button>
-        )}
 
-        <div className="flex bg-white/20 rounded-lg p-0.5">
-          {(['day', 'week'] as ViewMode[]).map((mode) => (
+          {/* Botão Hoje - aparece se não for hoje */}
+          {!isToday(selectedDate) && (
             <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                viewMode === mode ? 'bg-white text-primary-500' : 'text-white/90'
-              }`}
+              onClick={goToToday}
+              className="text-xs font-medium bg-white/20 px-2.5 py-1 rounded-full active:bg-white/30"
             >
-              {mode === 'day' ? 'Dia' : 'Semana'}
+              Hoje
             </button>
-          ))}
+          )}
+
+          <div className="flex bg-white/20 rounded-lg p-0.5">
+            {(['day', 'week'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  viewMode === mode ? 'bg-white text-primary-500' : 'text-white/90'
+                }`}
+              >
+                {mode === 'day' ? 'Dia' : 'Semana'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-
-      {/* Trial Banner - Mais compacto */}
-      <TrialBanner />
 
       {/* Week Days Header - Compacto com swipe */}
       {viewMode === 'day' && (
@@ -475,6 +495,7 @@ export function AgendaPage() {
               navigate={navigate}
               scrollRef={scrollRef}
               onUpdateStatus={updateAppointmentStatus}
+              onDelete={deleteAppointment}
               isSelectedDateToday={isToday(selectedDate)}
             />
           )}
@@ -597,17 +618,21 @@ function DayGridView({
   navigate,
   scrollRef,
   onUpdateStatus,
+  onDelete,
   isSelectedDateToday,
 }: {
   items: AgendaItem[]
   navigate: (path: string) => void
   scrollRef: React.RefObject<HTMLDivElement>
   onUpdateStatus: (id: string, status: string) => Promise<void>
+  onDelete: (id: string) => Promise<boolean>
   isSelectedDateToday: boolean
 }) {
   const [selectedItem, setSelectedItem] = useState<AgendaItem | null>(null)
   const [patientPhone, setPatientPhone] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [loadingPhone, setLoadingPhone] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -685,6 +710,19 @@ function DayGridView({
     setSelectedItem(null)
   }
 
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedItem) return
+    setDeleting(true)
+    await onDelete(selectedItem.id)
+    setDeleting(false)
+    setShowDeleteConfirm(false)
+    setSelectedItem(null)
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Grid de horários */}
@@ -757,7 +795,7 @@ function DayGridView({
                 <button
                   key={`${item.type}-${item.id}`}
                   onClick={handleClick}
-                  className={`absolute left-1.5 right-1.5 rounded-lg text-white text-left overflow-hidden shadow-sm ${bgColor} ${isSmall ? 'px-2 py-0.5' : 'p-2'} active:opacity-90 transition-opacity`}
+                  className={`absolute left-1.5 right-1.5 rounded-lg text-white text-center overflow-hidden shadow-sm ${bgColor} ${isSmall ? 'px-2 py-0.5' : 'p-2'} active:opacity-90 transition-opacity flex flex-col items-center justify-center`}
                   style={{
                     top: `${top}px`,
                     height: `${Math.max(height, PIXELS_PER_15MIN)}px`,
@@ -765,18 +803,18 @@ function DayGridView({
                 >
                   {isSmall ? (
                     // Layout compacto para slots pequenos (15 min)
-                    <div className="flex items-center gap-1 h-full">
+                    <div className="flex items-center justify-center gap-1 h-full w-full">
                       <span className="text-[10px] font-medium opacity-90 whitespace-nowrap">
                         {format(item.start, 'HH:mm')}
                       </span>
-                      <span className="font-semibold text-xs truncate flex-1">
+                      <span className="font-semibold text-xs truncate">
                         {item.title}
                       </span>
                     </div>
                   ) : (
                     // Layout expandido para slots maiores
                     <>
-                      <div className="font-bold text-sm truncate">{item.title}</div>
+                      <div className="font-bold text-sm truncate w-full">{item.title}</div>
                       <div className="text-xs opacity-90 mt-0.5">
                         {format(item.start, 'HH:mm')} - {format(item.end, 'HH:mm')}
                       </div>
@@ -892,6 +930,17 @@ function DayGridView({
                   Ver Paciente
                 </button>
               )}
+
+              {/* Excluir Agendamento */}
+              {selectedItem.type === 'appointment' && (
+                <button
+                  onClick={handleDeleteClick}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-xl font-medium active:bg-red-100 border border-red-200"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Excluir Agendamento
+                </button>
+              )}
             </div>
 
             {/* Botão Fechar */}
@@ -901,6 +950,41 @@ function DayGridView({
                 className="w-full py-3 text-surface-500 font-medium"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão - Estilo iOS */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl w-full max-w-[270px] shadow-xl overflow-hidden">
+            <div className="p-4 text-center">
+              <h3 className="text-[17px] font-semibold text-surface-900">
+                Excluir Agendamento?
+              </h3>
+              <p className="text-[13px] text-surface-500 mt-1">
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+            <div className="border-t border-surface-200">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="w-full py-3 text-[17px] text-primary-500 font-normal border-b border-surface-200 active:bg-surface-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="w-full py-3 text-[17px] text-red-500 font-semibold active:bg-surface-100 disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
           </div>
@@ -1017,7 +1101,7 @@ function WeekGridView({
                     <button
                       key={`${item.type}-${item.id}`}
                       onClick={handleClick}
-                      className={`absolute left-0.5 right-0.5 rounded p-1 text-white text-left overflow-hidden shadow-sm ${bgColor}`}
+                      className={`absolute left-0.5 right-0.5 rounded p-1 text-white text-center overflow-hidden shadow-sm ${bgColor} flex flex-col items-center justify-center`}
                       style={{
                         top: `${top}px`,
                         height: `${Math.max(height, WEEK_PIXELS_PER_15MIN)}px`,
@@ -1026,7 +1110,7 @@ function WeekGridView({
                       <div className="text-[9px] font-medium leading-tight">
                         {format(item.start, 'HH:mm')}
                       </div>
-                      <div className="text-[10px] font-bold truncate">
+                      <div className="text-[10px] font-bold truncate w-full">
                         {item.title.split(' ')[0]}
                       </div>
                     </button>

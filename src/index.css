@@ -41,6 +41,28 @@
            focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all;
   }
 
+  /* Fix date input styling to match other inputs */
+  input[type="date"].input {
+    @apply text-surface-900;
+    color-scheme: light;
+  }
+
+  input[type="date"].input::-webkit-datetime-edit {
+    @apply text-surface-900;
+  }
+
+  input[type="date"].input::-webkit-datetime-edit-text,
+  input[type="date"].input::-webkit-datetime-edit-month-field,
+  input[type="date"].input::-webkit-datetime-edit-day-field,
+  input[type="date"].input::-webkit-datetime-edit-year-field {
+    @apply text-surface-900;
+  }
+
+  /* Placeholder style when no value */
+  input[type="date"].input:not(:valid)::-webkit-datetime-edit {
+    @apply text-surface-400;
+  }
+
   .card {
     @apply bg-white rounded-2xl shadow-sm border border-surface-100 p-4;
   }

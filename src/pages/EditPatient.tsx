@@ -21,8 +21,6 @@ export function EditPatientPage() {
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
-  const [notes, setNotes] = useState('')
-  const [clinicalInfo, setClinicalInfo] = useState('')
 
   useEffect(() => {
     if (id) {
@@ -49,8 +47,6 @@ export function EditPatientPage() {
     setEmail(patient.email || '')
     setCpf(patient.cpf || '')
     setBirthDate(patient.birth_date || '')
-    setNotes(patient.notes || '')
-    setClinicalInfo(patient.clinical_info || '')
     setLoading(false)
   }
 
@@ -91,8 +87,6 @@ export function EditPatientPage() {
           email: email || null,
           cpf: cpf || null,
           birth_date: birthDate || null,
-          notes: notes || null,
-          clinical_info: clinicalInfo || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id!)
@@ -212,34 +206,6 @@ export function EditPatientPage() {
           />
         </div>
 
-        {/* Observações */}
-        <div>
-          <label className="block text-sm font-medium text-surface-700 mb-1.5">
-            Observações
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="input min-h-[100px] resize-none"
-            placeholder="Observações sobre o paciente..."
-            rows={4}
-          />
-        </div>
-
-        {/* Informações Clínicas */}
-        <div>
-          <label className="block text-sm font-medium text-surface-700 mb-1.5">
-            Informações Clínicas
-          </label>
-          <textarea
-            value={clinicalInfo}
-            onChange={(e) => setClinicalInfo(e.target.value)}
-            className="input min-h-[100px] resize-none"
-            placeholder="Informações clínicas relevantes..."
-            rows={4}
-          />
-        </div>
-
         {error && (
           <p className="text-red-600 text-sm text-center">{error}</p>
         )}
@@ -272,40 +238,37 @@ export function EditPatientPage() {
         </div>
       </form>
 
-      {/* Delete Modal */}
+      {/* Delete Modal - iOS Style */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => setShowDeleteModal(false)}
           />
 
-          {/* Modal */}
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl">
-            <div className="p-6 text-center">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-7 h-7 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">
+          {/* Modal - iOS Style */}
+          <div className="relative bg-white/95 backdrop-blur-xl rounded-2xl w-full max-w-[270px] shadow-xl overflow-hidden">
+            <div className="p-4 text-center">
+              <h3 className="text-[17px] font-semibold text-surface-900">
                 Excluir paciente?
               </h3>
-              <p className="text-surface-500 text-sm">
-                Esta ação não pode ser desfeita. Todos os dados do paciente serão removidos permanentemente.
+              <p className="text-[13px] text-surface-500 mt-1">
+                Esta ação não pode ser desfeita. Todos os dados serão removidos.
               </p>
             </div>
 
-            <div className="flex border-t border-surface-100">
+            <div className="border-t border-surface-200">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 py-4 text-surface-600 font-medium border-r border-surface-100 active:bg-surface-50"
+                className="w-full py-3 text-[17px] text-primary-500 font-normal border-b border-surface-200 active:bg-surface-100"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex-1 py-4 text-red-600 font-medium active:bg-red-50 disabled:opacity-50"
+                className="w-full py-3 text-[17px] text-red-500 font-semibold active:bg-surface-100 disabled:opacity-50"
               >
                 {deleting ? 'Excluindo...' : 'Excluir'}
               </button>

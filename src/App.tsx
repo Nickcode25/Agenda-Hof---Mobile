@@ -1,10 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { SubscriptionProvider, useSubscription } from '@/contexts/SubscriptionContext'
-import { NotificationProvider } from '@/contexts/NotificationContext'
+import { NotificationProvider, useNotifications } from '@/contexts/NotificationContext'
 import { BottomNav } from '@/components/layout/BottomNav'
+import {
+  NotificationPermissionModal,
+  shouldShowNotificationModal,
+} from '@/components/NotificationPermissionModal'
 import { Loading } from '@/components/ui/Loading'
 import { LoginPage } from '@/pages/Login'
 import { AgendaPage } from '@/pages/Agenda'
@@ -20,6 +24,7 @@ import { ImportContactsPage } from '@/pages/ImportContacts'
 import { ForgotPasswordPage } from '@/pages/ForgotPassword'
 import { ResetPasswordPage } from '@/pages/ResetPassword'
 import { RegisterPage } from '@/pages/Register'
+import { NotificationsPage } from '@/pages/Notifications'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -57,7 +62,9 @@ function SubscriptionRequiredRoute({ children }: { children: React.ReactNode }) 
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const { refreshNotificationStatus, scheduleRemindersForToday } = useNotifications()
   const navigate = useNavigate()
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
 
   // Deep Links handler
   useEffect(() => {
@@ -77,6 +84,25 @@ function AppRoutes() {
       CapacitorApp.removeAllListeners()
     }
   }, [navigate])
+
+  // Verifica se deve mostrar modal de permissão após login
+  useEffect(() => {
+    if (user && !loading) {
+      // Pequeno delay para garantir que a UI carregou
+      const timer = setTimeout(() => {
+        if (shouldShowNotificationModal()) {
+          setShowNotificationModal(true)
+        }
+      }, 500)
+
+      return () => clearTimeout(timer)
+    }
+  }, [user, loading])
+
+  const handleNotificationPermissionGranted = () => {
+    refreshNotificationStatus()
+    scheduleRemindersForToday()
+  }
 
   if (loading) {
     return <Loading fullScreen text="Carregando..." />
@@ -185,10 +211,26 @@ function AppRoutes() {
             </SubscriptionRequiredRoute>
           }
         />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/agenda" replace />} />
       </Routes>
 
       {user && <BottomNav />}
+
+      {/* Modal de permissão de notificações */}
+      {showNotificationModal && (
+        <NotificationPermissionModal
+          onClose={() => setShowNotificationModal(false)}
+          onPermissionGranted={handleNotificationPermissionGranted}
+        />
+      )}
     </>
   )
 }

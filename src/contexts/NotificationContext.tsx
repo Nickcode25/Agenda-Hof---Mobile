@@ -4,17 +4,18 @@ import { useAuth } from './AuthContext'
 import { supabase } from '@/lib/supabase'
 import {
   initLocalNotifications,
-  initPushNotifications,
   scheduleAppointmentReminder,
   cancelAppointmentReminder,
   setupNotificationClickListener,
   isNativePlatform,
+  getNotificationSettings,
 } from '@/lib/notifications'
 import { parseISO, startOfDay, endOfDay, addDays } from 'date-fns'
 
 interface NotificationContextType {
   notificationsEnabled: boolean
   scheduleRemindersForToday: () => Promise<void>
+  refreshNotificationStatus: () => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -36,19 +37,27 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const navigate = useNavigate()
 
+  // Função para verificar status das notificações
+  const refreshNotificationStatus = () => {
+    const settings = getNotificationSettings()
+    setNotificationsEnabled(settings.enabled && settings.permission === 'granted')
+  }
+
   // Inicializa notificações quando o app inicia
   useEffect(() => {
     async function init() {
+      // Verifica configurações salvas
+      refreshNotificationStatus()
+
       if (!isNativePlatform()) {
         return
       }
 
-      // Inicializa notificações locais
+      // Inicializa notificações locais (solicita permissão se necessário)
       const localEnabled = await initLocalNotifications()
-      setNotificationsEnabled(localEnabled)
-
-      // Inicializa push notifications
-      await initPushNotifications()
+      if (localEnabled) {
+        refreshNotificationStatus()
+      }
 
       // Configura listener para quando notificação é clicada
       setupNotificationClickListener((_appointmentId) => {
@@ -60,7 +69,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     init()
   }, [navigate])
 
-  // Agenda lembretes para consultas do dia quando usuário loga
+  // Agenda lembretes para consultas do dia quando usuário loga ou configuração muda
   useEffect(() => {
     if (user && notificationsEnabled) {
       scheduleRemindersForToday()
@@ -69,7 +78,19 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
   // Função para agendar lembretes para consultas de hoje e amanhã
   const scheduleRemindersForToday = async () => {
-    if (!user || !isNativePlatform()) {
+    if (!user) {
+      return
+    }
+
+    // Verifica se notificações estão habilitadas
+    const settings = getNotificationSettings()
+    if (!settings.enabled || settings.permission !== 'granted') {
+      return
+    }
+
+    // Para web, notificações locais agendadas não funcionam
+    // Apenas plataforma nativa suporta agendamento
+    if (!isNativePlatform()) {
       return
     }
 
@@ -93,10 +114,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         return
       }
 
-      // Agenda lembrete para cada consulta (60 min antes)
+      // Usa o tempo configurado pelo usuário
+      const minutesBefore = settings.minutesBefore
+
+      // Agenda lembrete para cada consulta
       for (const apt of appointments || []) {
         const appointmentTime = parseISO(apt.start)
-        const reminderTime = new Date(appointmentTime.getTime() - 60 * 60 * 1000)
+        const reminderTime = new Date(appointmentTime.getTime() - minutesBefore * 60 * 1000)
 
         // Só agenda se o lembrete ainda não passou
         if (reminderTime > now) {
@@ -105,7 +129,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
             apt.patient_name,
             apt.procedure || 'Consulta',
             appointmentTime,
-            60 // 60 minutos antes
+            minutesBefore
           )
         }
       }
@@ -121,6 +145,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       value={{
         notificationsEnabled,
         scheduleRemindersForToday,
+        refreshNotificationStatus,
       }}
     >
       {children}
@@ -136,7 +161,14 @@ export function useAppointmentReminder() {
     procedure: string,
     appointmentTime: Date
   ) => {
-    return scheduleAppointmentReminder(appointmentId, patientName, procedure, appointmentTime, 60)
+    const settings = getNotificationSettings()
+    return scheduleAppointmentReminder(
+      appointmentId,
+      patientName,
+      procedure,
+      appointmentTime,
+      settings.minutesBefore
+    )
   }
 
   const cancelReminder = async (appointmentId: string) => {

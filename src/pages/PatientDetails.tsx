@@ -142,23 +142,27 @@ export function PatientDetailsPage() {
 
   return (
     <div className="min-h-screen bg-surface-50 pb-20">
-      {/* Header compacto */}
-      <div className="bg-primary-500 text-white px-2 py-2.5 flex items-center justify-between safe-area-top">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-full active:bg-white/20 transition-colors"
-          aria-label="Voltar"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <h1 className="text-lg font-semibold">Paciente</h1>
-        <button
-          onClick={() => navigate(`/patient/${id}/edit`)}
-          className="p-2 rounded-full active:bg-white/20 transition-colors"
-          aria-label="Editar paciente"
-        >
-          <Edit2 className="w-5 h-5" />
-        </button>
+      {/* Header compacto com Dynamic Island spacing */}
+      <div className="bg-primary-500 text-white safe-area-top">
+        {/* Extra padding for Dynamic Island */}
+        <div className="h-2" />
+        <div className="px-2 py-2 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full active:bg-white/20 transition-colors"
+            aria-label="Voltar"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-semibold">Paciente</h1>
+          <button
+            onClick={() => navigate(`/patient/${id}/edit`)}
+            className="p-2 rounded-full active:bg-white/20 transition-colors"
+            aria-label="Editar paciente"
+          >
+            <Edit2 className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Profile Section - Mais limpo */}
