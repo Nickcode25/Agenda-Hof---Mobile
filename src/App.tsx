@@ -10,6 +10,7 @@ import {
   shouldShowNotificationModal,
 } from '@/components/NotificationPermissionModal'
 import { Loading } from '@/components/ui/Loading'
+import { useSwipeBack } from '@/hooks/useSwipeBack'
 import { LoginPage } from '@/pages/Login'
 import { AgendaPage } from '@/pages/Agenda'
 import { PatientsPage } from '@/pages/Patients'
@@ -69,6 +70,9 @@ function AppRoutes() {
   const { refreshNotificationStatus, scheduleRemindersForToday } = useNotifications()
   const navigate = useNavigate()
   const [showNotificationModal, setShowNotificationModal] = useState(false)
+
+  // Habilitar swipe back para voltar à página anterior
+  useSwipeBack()
 
   // Deep Links handler
   useEffect(() => {
