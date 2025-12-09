@@ -4,14 +4,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { Header } from '@/components/layout/Header'
 import { Avatar } from '@/components/ui/Avatar'
-import { LogOut, ChevronRight, Bell, CreditCard, Crown, Clock, ExternalLink } from 'lucide-react'
-
-const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
+import { LogOut, ChevronRight, Bell, Crown } from 'lucide-react'
 
 export function SettingsPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
-  const { isActive, planName, subscription, isOnTrial, trialDaysLeft } = useSubscription()
+  const { planName } = useSubscription()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
@@ -22,82 +20,44 @@ export function SettingsPage() {
     setShowLogoutModal(false)
   }
 
-  const handleOpenWebsite = () => {
-    window.open(`${SITE_URL}/login`, '_blank')
-  }
-
   return (
     <div className="min-h-screen bg-surface-50 pb-20">
       <Header title="Configurações" />
 
       {/* Profile Section */}
-      <div className="bg-white px-4 py-6 border-b border-surface-100">
+      <button
+        onClick={() => navigate('/profile')}
+        className="w-full bg-white px-4 py-5 border-b border-surface-100 active:bg-surface-50 transition-colors"
+      >
         <div className="flex items-center gap-4">
-          <Avatar name={user?.email || 'Usuário'} size="lg" />
-          <div className="flex-1">
-            <h2 className="font-semibold text-surface-900">
+          <Avatar name={user?.user_metadata?.name || user?.email || 'Usuário'} size="lg" />
+          <div className="flex-1 text-left min-w-0">
+            <h2 className="font-semibold text-surface-900 text-lg truncate">
               {user?.user_metadata?.name || 'Usuário'}
             </h2>
-            <p className="text-surface-500 text-sm">{user?.email}</p>
+            <p className="text-surface-500 text-sm truncate">{user?.email}</p>
           </div>
+          <ChevronRight className="w-5 h-5 text-surface-400 flex-shrink-0" />
         </div>
-
-        {/* Plano atual */}
-        <div className={`mt-4 p-3 rounded-xl flex items-center justify-between ${
-          isOnTrial ? 'bg-primary-50 border border-primary-200' : 'bg-surface-50'
-        }`}>
-          <div className="flex items-center gap-2">
-            {isOnTrial ? (
-              <Clock className="w-5 h-5 text-primary-500" />
-            ) : (
-              <Crown className={`w-5 h-5 ${isActive ? 'text-primary-500' : 'text-surface-400'}`} />
-            )}
-            <div>
-              <p className="text-sm font-medium text-surface-900">{planName}</p>
-              <p className="text-xs text-surface-500">
-                {isOnTrial
-                  ? `${trialDaysLeft} ${trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}`
-                  : isActive
-                    ? 'Assinatura ativa'
-                    : subscription
-                      ? 'Assinatura inativa'
-                      : 'Sem assinatura'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleOpenWebsite}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg flex items-center gap-1 ${
-              isOnTrial
-                ? 'bg-primary-500 text-white'
-                : isActive
-                  ? 'bg-surface-200 text-surface-600'
-                  : 'bg-primary-500 text-white'
-            }`}
-          >
-            {isOnTrial ? 'Ver planos' : isActive ? 'Gerenciar' : 'Assinar'}
-            <ExternalLink className="w-3 h-3" />
-          </button>
-        </div>
-      </div>
+      </button>
 
       {/* Settings List */}
       <div className="px-4 py-4 space-y-4">
         <div className="card divide-y divide-surface-100 p-0 overflow-hidden">
           <button
-            onClick={handleOpenWebsite}
+            onClick={() => navigate('/my-subscription')}
             className="w-full flex items-center justify-between p-4 active:bg-surface-50"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-primary-600" />
+                <Crown className="w-5 h-5 text-primary-600" />
               </div>
               <div className="text-left">
-                <span className="text-surface-900 block">Planos</span>
+                <span className="text-surface-900 block">Minha Assinatura</span>
                 <span className="text-xs text-surface-500">{planName}</span>
               </div>
             </div>
-            <ExternalLink className="w-5 h-5 text-surface-400" />
+            <ChevronRight className="w-5 h-5 text-surface-400" />
           </button>
 
           <button

@@ -25,6 +25,10 @@ import { ForgotPasswordPage } from '@/pages/ForgotPassword'
 import { ResetPasswordPage } from '@/pages/ResetPassword'
 import { RegisterPage } from '@/pages/Register'
 import { NotificationsPage } from '@/pages/Notifications'
+import { ProfilePage } from '@/pages/Profile'
+import { MySubscriptionPage } from '@/pages/MySubscription'
+import { SelectPlanPage } from '@/pages/SelectPlan'
+import { CheckoutPage } from '@/pages/Checkout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -216,6 +220,38 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-subscription"
+          element={
+            <ProtectedRoute>
+              <MySubscriptionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/select-plan"
+          element={
+            <ProtectedRoute>
+              <SelectPlanPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutPage />
             </ProtectedRoute>
           }
         />
