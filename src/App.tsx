@@ -30,6 +30,7 @@ import { ProfilePage } from '@/pages/Profile'
 import { MySubscriptionPage } from '@/pages/MySubscription'
 import { SelectPlanPage } from '@/pages/SelectPlan'
 import { CheckoutPage } from '@/pages/Checkout'
+import { PaymentHistoryPage } from '@/pages/PaymentHistory'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -256,6 +257,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <CheckoutPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment-history"
+          element={
+            <ProtectedRoute>
+              <PaymentHistoryPage />
             </ProtectedRoute>
           }
         />

@@ -10,7 +10,7 @@ export interface Subscription {
   id: string
   user_id: string
   plan_id: string | null
-  status: 'active' | 'cancelled' | 'expired' | 'pending'
+  status: 'active' | 'cancelled' | 'expired' | 'pending' | 'pending_cancellation'
   plan_amount: number
   discount_percentage: number | null
   next_billing_date: string | null
@@ -30,6 +30,7 @@ interface SubscriptionContextType {
   isCourtesy: boolean
   hasPaidSubscription: boolean
   refetch: () => Promise<void>
+  cancelSubscription: () => Promise<{ success: boolean; error?: string }>
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined)
@@ -209,6 +210,43 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         ? `Período de teste (${trialDaysLeft} dias restantes)`
         : 'Sem plano'
 
+  // Função para cancelar assinatura
+  const cancelSubscription = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user || !subscription?.id) {
+      return { success: false, error: 'Nenhuma assinatura encontrada' }
+    }
+
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL
+
+      const response = await fetch(`${backendUrl}/api/stripe/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription.id,
+          userId: user.id,
+          immediately: false // Cancela no fim do período pago
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return { success: false, error: data.error || 'Erro ao cancelar assinatura' }
+      }
+
+      // Recarregar dados (o backend já atualizou o status)
+      await fetchSubscription()
+
+      return { success: true }
+    } catch (error) {
+      console.error('Erro ao cancelar assinatura:', error)
+      return { success: false, error: 'Erro de conexão. Tente novamente.' }
+    }
+  }
+
   return (
     <SubscriptionContext.Provider
       value={{
@@ -222,6 +260,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         isCourtesy,
         hasPaidSubscription,
         refetch: fetchSubscription,
+        cancelSubscription,
       }}
     >
       {children}

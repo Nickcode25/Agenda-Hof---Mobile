@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Header } from '@/components/layout/Header'
 import { Loading } from '@/components/ui/Loading'
-import { Camera, User, MapPin, Phone, ChevronLeft, Check } from 'lucide-react'
+import { Camera, User, MapPin, Phone, Check } from 'lucide-react'
 
 interface ProfileData {
   // Informações Pessoais
@@ -73,15 +73,10 @@ export function ProfilePage() {
         .eq('user_id', user.id)
         .single()
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Erro ao carregar perfil:', error)
-        return
-      }
-
-      if (data) {
+      if (data && !error) {
         setProfile({
           avatar_url: data.avatar_url || '',
-          full_name: data.full_name || user.user_metadata?.name || '',
+          full_name: data.full_name || user.user_metadata?.full_name || '',
           username: data.username || '',
           email: user.email || '',
           country: data.country || 'Brasil',
@@ -97,11 +92,14 @@ export function ProfilePage() {
           phone_number: data.phone_number || '',
         })
       } else {
-        // Se não existe perfil, preenche com dados básicos do usuário
+        // Se não existe perfil ou houve erro, preenche com dados básicos do usuário
+        if (error) {
+          console.error('Erro ao carregar perfil:', error)
+        }
         setProfile({
           ...initialProfileData,
           email: user.email || '',
-          full_name: user.user_metadata?.name || '',
+          full_name: user.user_metadata?.full_name || '',
         })
       }
     } catch (err) {
@@ -227,11 +225,7 @@ export function ProfilePage() {
     <div className="min-h-screen bg-surface-50 pb-24">
       <Header
         title="Perfil"
-        leftAction={
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2">
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-        }
+        showBack
         rightAction={
           <button
             onClick={handleSave}

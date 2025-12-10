@@ -29,6 +29,9 @@ interface PaymentHistory {
   amount: number
   status: string
   payment_method: string
+  card_brand: string | null
+  card_last_digits: string | null
+  description: string | null
   created_at: string
 }
 
@@ -44,15 +47,16 @@ const planFeatures = {
     'Agenda ilimitada',
     'Pacientes ilimitados',
     'Gestão de profissionais',
-    'Procedimentos personalizados'
+    'Procedimentos personalizados',
+    'Relatórios básicos'
   ],
   premium: [
-    'Tudo do Pro +',
+    'Agenda ilimitada',
+    'Pacientes ilimitados',
     'Integração WhatsApp',
     'Gestão de alunos/cursos',
     'Relatórios financeiros',
-    'Controle de estoque',
-    'Suporte premium 24/7'
+    'Suporte prioritário'
   ],
   courtesy: [
     'Acesso completo Premium',
@@ -79,16 +83,17 @@ export function MySubscriptionPage() {
     trialDaysLeft,
     planName,
     isCourtesy,
-    hasPaidSubscription
+    hasPaidSubscription,
+    cancelSubscription
   } = useSubscription()
 
   const [payments, setPayments] = useState<PaymentHistory[]>([])
-  const [loadingPayments, setLoadingPayments] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
-  const [showPaymentsModal, setShowPaymentsModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [cancelSuccess, setCancelSuccess] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
 
-  // Buscar histórico de pagamentos
+  // Buscar histórico de pagamentos para estatísticas
   useEffect(() => {
     if (user && hasPaidSubscription) {
       fetchPaymentHistory()
@@ -97,33 +102,37 @@ export function MySubscriptionPage() {
 
   const fetchPaymentHistory = async () => {
     if (!user) return
-    setLoadingPayments(true)
     try {
       const { data } = await supabase
         .from('payment_history')
         .select('*')
         .eq('user_id', user.id)
+        .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(10)
 
       if (data) setPayments(data)
     } catch (err) {
       console.error('Erro ao buscar pagamentos:', err)
-    } finally {
-      setLoadingPayments(false)
     }
   }
 
   // Determinar tipo de plano para features e cor
   const getPlanType = (): 'basic' | 'pro' | 'premium' | 'courtesy' | 'trial' => {
     if (isCourtesy) return 'courtesy'
-    if (isOnTrial) return 'trial'
-    if (!subscription) return 'trial'
 
-    const amount = subscription.plan_amount || 0
-    if (amount >= 99) return 'premium'
-    if (amount >= 79) return 'pro'
-    return 'basic'
+    // Se tem assinatura paga, determinar pelo valor
+    if (hasPaidSubscription && subscription) {
+      const amount = subscription.plan_amount || 0
+      if (amount >= 99) return 'premium'
+      if (amount >= 79) return 'pro'
+      return 'basic'
+    }
+
+    // Se está em trial
+    if (isOnTrial) return 'trial'
+
+    return 'trial'
   }
 
   const planType = getPlanType()
@@ -194,16 +203,22 @@ export function MySubscriptionPage() {
   const handleCancelSubscription = async () => {
     if (!subscription?.id) return
     setCancelling(true)
+    setCancelError(null)
 
     try {
-      // Aqui você chamaria sua API de cancelamento
-      // await cancelSubscription(subscription.id)
-      alert('Funcionalidade de cancelamento será implementada em breve.')
+      const result = await cancelSubscription()
+
+      if (result.success) {
+        setCancelSuccess(true)
+        setShowCancelModal(false)
+      } else {
+        setCancelError(result.error || 'Erro ao cancelar assinatura')
+      }
     } catch (err) {
       console.error('Erro ao cancelar:', err)
+      setCancelError('Erro inesperado. Tente novamente.')
     } finally {
       setCancelling(false)
-      setShowCancelModal(false)
     }
   }
 
@@ -219,11 +234,7 @@ export function MySubscriptionPage() {
     <div className="min-h-screen bg-surface-50 pb-24">
       <Header
         title="Minha Assinatura"
-        leftAction={
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2">
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-        }
+        showBack
       />
 
       <div className="px-4 py-6 space-y-4">
@@ -250,7 +261,7 @@ export function MySubscriptionPage() {
                       R$ {subscription.plan_amount.toFixed(2)}/mês
                     </p>
                   )}
-                  {isOnTrial && (
+                  {isOnTrial && !hasPaidSubscription && (
                     <p className="text-white/80 text-sm">
                       {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
                     </p>
@@ -301,32 +312,6 @@ export function MySubscriptionPage() {
           )}
         </section>
 
-        {/* Card de Informações da Conta */}
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="w-5 h-5 text-primary-500" />
-            <h3 className="font-semibold text-surface-900">Informações da Conta</h3>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Avatar name={user?.user_metadata?.name || user?.email || 'Usuário'} size="lg" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-surface-900 truncate">
-                {user?.user_metadata?.name || 'Usuário'}
-              </p>
-              <p className="text-sm text-surface-500 truncate">{user?.email}</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigate('/profile')}
-            className="mt-4 w-full py-2.5 border border-surface-200 rounded-xl text-surface-700 font-medium text-sm active:bg-surface-50 flex items-center justify-center gap-2"
-          >
-            Editar Perfil
-            <ChevronLeft className="w-4 h-4 rotate-180" />
-          </button>
-        </section>
-
         {/* Card de Gestão de Pagamentos (apenas para pagantes) */}
         {hasPaidSubscription && (
           <section className="card">
@@ -362,10 +347,11 @@ export function MySubscriptionPage() {
             </div>
 
             <button
-              onClick={() => setShowPaymentsModal(true)}
-              className="mt-4 w-full py-2.5 border border-surface-200 rounded-xl text-surface-700 font-medium text-sm active:bg-surface-50"
+              onClick={() => navigate('/payment-history')}
+              className="mt-4 w-full py-2.5 border border-surface-200 rounded-xl text-surface-700 font-medium text-sm active:bg-surface-50 flex items-center justify-center gap-2"
             >
               Ver Histórico de Faturas
+              <ChevronLeft className="w-4 h-4 rotate-180" />
             </button>
           </section>
         )}
@@ -427,32 +413,6 @@ export function MySubscriptionPage() {
           </div>
 
           <div className="space-y-3">
-            {/* Usuário em trial - ação principal: assinar */}
-            {isOnTrial && (
-              <>
-                <button
-                  onClick={handleSelectPlan}
-                  className="w-full btn-primary flex items-center justify-center gap-2"
-                >
-                  <Star className="w-5 h-5" />
-                  Assinar Agora
-                </button>
-                <p className="text-xs text-surface-400 text-center">
-                  Seu período de teste termina em {trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}
-                </p>
-              </>
-            )}
-
-            {/* Usuário cortesia - sem ações de upgrade, apenas visualizar planos */}
-            {isCourtesy && (
-              <button
-                onClick={handleSelectPlan}
-                className="w-full py-3 border border-surface-200 text-surface-700 rounded-xl font-medium active:bg-surface-50 flex items-center justify-center gap-2"
-              >
-                Ver Planos Disponíveis
-              </button>
-            )}
-
             {/* Usuário pagante - gerenciar assinatura */}
             {hasPaidSubscription && (
               <>
@@ -470,6 +430,32 @@ export function MySubscriptionPage() {
                 </button>
                 <p className="text-xs text-surface-400 text-center">
                   Em caso de cancelamento, você terá acesso até o fim do período atual
+                </p>
+              </>
+            )}
+
+            {/* Usuário cortesia - sem ações de upgrade, apenas visualizar planos */}
+            {!hasPaidSubscription && isCourtesy && (
+              <button
+                onClick={handleSelectPlan}
+                className="w-full py-3 border border-surface-200 text-surface-700 rounded-xl font-medium active:bg-surface-50 flex items-center justify-center gap-2"
+              >
+                Ver Planos Disponíveis
+              </button>
+            )}
+
+            {/* Usuário em trial (sem assinatura paga) - ação principal: assinar */}
+            {!hasPaidSubscription && !isCourtesy && isOnTrial && (
+              <>
+                <button
+                  onClick={handleSelectPlan}
+                  className="w-full btn-primary flex items-center justify-center gap-2"
+                >
+                  <Star className="w-5 h-5" />
+                  Assinar Agora
+                </button>
+                <p className="text-xs text-surface-400 text-center">
+                  Seu período de teste termina em {trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}
                 </p>
               </>
             )}
@@ -510,7 +496,7 @@ export function MySubscriptionPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={() => setShowCancelModal(false)}
+            onClick={() => !cancelling && setShowCancelModal(false)}
           />
           <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
             <div className="p-6 text-center">
@@ -523,87 +509,76 @@ export function MySubscriptionPage() {
               <p className="text-sm text-surface-500">
                 Tem certeza que deseja cancelar? Você terá acesso até o final do período atual.
               </p>
+              {cancelError && (
+                <p className="text-sm text-red-500 mt-3 bg-red-50 p-2 rounded-lg">
+                  {cancelError}
+                </p>
+              )}
             </div>
             <div className="flex border-t border-surface-200">
               <button
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-3.5 text-surface-600 font-medium border-r border-surface-200 active:bg-surface-50"
+                onClick={() => {
+                  setShowCancelModal(false)
+                  setCancelError(null)
+                }}
+                disabled={cancelling}
+                className="flex-1 py-3.5 text-surface-600 font-medium border-r border-surface-200 active:bg-surface-50 disabled:opacity-50"
               >
                 Voltar
               </button>
               <button
                 onClick={handleCancelSubscription}
                 disabled={cancelling}
-                className="flex-1 py-3.5 text-red-500 font-semibold active:bg-red-50 disabled:opacity-50"
+                className="flex-1 py-3.5 text-red-500 font-semibold active:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {cancelling ? 'Cancelando...' : 'Confirmar'}
+                {cancelling ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    Cancelando...
+                  </>
+                ) : (
+                  'Confirmar'
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Histórico de Pagamentos */}
-      {showPaymentsModal && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      {/* Modal de Sucesso */}
+      {cancelSuccess && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={() => setShowPaymentsModal(false)}
+            onClick={() => setCancelSuccess(false)}
           />
-          <div className="relative bg-white rounded-t-2xl w-full max-h-[80vh] shadow-xl overflow-hidden animate-slide-up safe-area-bottom">
-            <div className="sticky top-0 bg-white border-b border-surface-100 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-surface-900">
-                  Histórico de Pagamentos
-                </h3>
-                <button
-                  onClick={() => setShowPaymentsModal(false)}
-                  className="text-surface-500 font-medium"
-                >
-                  Fechar
-                </button>
+          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-7 h-7 text-green-500" />
               </div>
+              <h3 className="text-lg font-semibold text-surface-900 mb-2">
+                Assinatura Cancelada
+              </h3>
+              <p className="text-sm text-surface-500">
+                Sua assinatura foi cancelada com sucesso. Você ainda terá acesso até o final do período atual.
+              </p>
             </div>
-
-            <div className="p-4 overflow-y-auto max-h-[calc(80vh-60px)]">
-              {loadingPayments ? (
-                <div className="flex justify-center py-8">
-                  <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : payments.length === 0 ? (
-                <div className="text-center py-8">
-                  <CreditCard className="w-12 h-12 text-surface-300 mx-auto mb-3" />
-                  <p className="text-surface-500">Nenhum pagamento encontrado</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {payments.map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="bg-surface-50 rounded-xl p-4"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-surface-900">
-                          R$ {payment.amount.toFixed(2)}
-                        </span>
-                        {getStatusBadge(payment.status)}
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-surface-500">
-                          {formatDate(payment.created_at)}
-                        </span>
-                        <span className="text-surface-500">
-                          {payment.payment_method || 'Cartão'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="border-t border-surface-200">
+              <button
+                onClick={() => {
+                  setCancelSuccess(false)
+                  navigate('/settings')
+                }}
+                className="w-full py-3.5 text-primary-500 font-semibold active:bg-surface-50"
+              >
+                Entendi
+              </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Header } from '@/components/layout/Header'
-import { ChevronLeft, Check, Crown, Zap, Star } from 'lucide-react'
+import { Check, Crown, Zap, Star } from 'lucide-react'
 
 export interface Plan {
   id: string
@@ -80,11 +80,7 @@ export function SelectPlanPage() {
     <div className="min-h-screen bg-surface-50 pb-24">
       <Header
         title="Escolha seu Plano"
-        leftAction={
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2">
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-        }
+        showBack
       />
 
       <div className="px-4 py-6">

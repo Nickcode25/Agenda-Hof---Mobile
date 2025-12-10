@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { Header } from '@/components/layout/Header'
 import { Avatar } from '@/components/ui/Avatar'
-import { LogOut, ChevronRight, Bell, Crown } from 'lucide-react'
+import { LogOut, ChevronRight, Bell, Crown, User } from 'lucide-react'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -24,26 +24,35 @@ export function SettingsPage() {
     <div className="min-h-screen bg-surface-50 pb-20">
       <Header title="Configurações" />
 
-      {/* Profile Section */}
-      <button
-        onClick={() => navigate('/profile')}
-        className="w-full bg-white px-4 py-5 border-b border-surface-100 active:bg-surface-50 transition-colors"
-      >
+      {/* Profile Section - não clicável */}
+      <div className="w-full bg-white px-4 py-5 border-b border-surface-100">
         <div className="flex items-center gap-4">
-          <Avatar name={user?.user_metadata?.name || user?.email || 'Usuário'} size="lg" />
+          <Avatar name={user?.user_metadata?.full_name || user?.email || 'Usuário'} size="lg" />
           <div className="flex-1 text-left min-w-0">
             <h2 className="font-semibold text-surface-900 text-lg truncate">
-              {user?.user_metadata?.name || 'Usuário'}
+              {user?.user_metadata?.full_name || 'Usuário'}
             </h2>
             <p className="text-surface-500 text-sm truncate">{user?.email}</p>
           </div>
-          <ChevronRight className="w-5 h-5 text-surface-400 flex-shrink-0" />
         </div>
-      </button>
+      </div>
 
       {/* Settings List */}
       <div className="px-4 py-4 space-y-4">
         <div className="card divide-y divide-surface-100 p-0 overflow-hidden">
+          <button
+            onClick={() => navigate('/profile')}
+            className="w-full flex items-center justify-between p-4 active:bg-surface-50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-surface-100 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-surface-600" />
+              </div>
+              <span className="text-surface-900">Meu Perfil</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-surface-400" />
+          </button>
+
           <button
             onClick={() => navigate('/my-subscription')}
             className="w-full flex items-center justify-between p-4 active:bg-surface-50"
