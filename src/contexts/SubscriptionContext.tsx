@@ -10,12 +10,53 @@ export interface Subscription {
   id: string
   user_id: string
   plan_id: string | null
+  plan_type: 'basic' | 'pro' | 'premium' | null // Tipo do plano
+  plan_name: string | null // Nome completo do plano
   status: 'active' | 'cancelled' | 'expired' | 'pending' | 'pending_cancellation'
   plan_amount: number
   discount_percentage: number | null
   next_billing_date: string | null
   created_at: string
   updated_at: string
+}
+
+// Função para determinar o tipo do plano pelo NOME (não pelo preço)
+// Isso evita bugs quando cupons de desconto são aplicados
+const determinePlanTypeByName = (planName: string): 'basic' | 'pro' | 'premium' => {
+  const nameLower = planName.toLowerCase()
+  if (nameLower.includes('premium')) {
+    return 'premium'
+  }
+  if (nameLower.includes('profissional') || nameLower.includes('pro')) {
+    return 'pro'
+  }
+  return 'basic'
+}
+
+// RETROCOMPATIBILIDADE: Corrige plan_type baseado no preço original
+// Para assinaturas antigas que foram salvas com plan_type errado devido ao bug do cupom
+const getEffectivePlanType = (
+  planType: string | null,
+  planName: string | null,
+  planAmount: number
+): 'basic' | 'pro' | 'premium' => {
+  // Se tem plan_name, usa o nome para determinar (mais confiável)
+  if (planName) {
+    return determinePlanTypeByName(planName)
+  }
+
+  // Se o plan_type está como 'basic' mas o preço original indica outro plano, corrige
+  if (planType === 'basic' && planAmount >= 99) {
+    console.log('⚠️ Retrocompatibilidade: corrigindo plan_type de basic para premium (preço original:', planAmount, ')')
+    return 'premium'
+  }
+  if (planType === 'basic' && planAmount >= 79) {
+    console.log('⚠️ Retrocompatibilidade: corrigindo plan_type de basic para pro (preço original:', planAmount, ')')
+    return 'pro'
+  }
+
+  // Retorna o plan_type original ou 'basic' como fallback
+  return (planType as 'basic' | 'pro' | 'premium') || 'basic'
 }
 
 
@@ -27,6 +68,7 @@ interface SubscriptionContextType {
   trialDaysLeft: number
   trialExpired: boolean
   planName: string
+  planType: 'basic' | 'pro' | 'premium' | null // Tipo efetivo do plano (com retrocompatibilidade)
   isCourtesy: boolean
   hasPaidSubscription: boolean
   refetch: () => Promise<void>
@@ -76,11 +118,21 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         // Verificar se é cortesia (100% de desconto)
         const isCourtesy = discountPercentage === 100
 
+        // RETROCOMPATIBILIDADE: Obter o tipo efetivo do plano
+        // Corrige assinaturas antigas que foram salvas com plan_type errado devido ao bug do cupom
+        const effectivePlanType = getEffectivePlanType(
+          activeSubscription.plan_type,
+          activeSubscription.plan_name,
+          planAmount
+        )
+
         // Normalizar os dados da assinatura
         const normalizedSubscription: Subscription = {
           ...activeSubscription,
           plan_amount: planAmount,
           discount_percentage: discountPercentage,
+          plan_type: effectivePlanType, // Usar o tipo corrigido
+          plan_name: activeSubscription.plan_name || null,
         }
 
         if (isCourtesy) {
@@ -193,19 +245,35 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   // Determinar se tem acesso ativo (assinatura paga, trial ou cortesia)
   const isActive = hasPaidSubscription || isOnTrial || isCourtesy
 
-  // Determinar nome do plano baseado no valor
-  const getPlanName = (amount: number | undefined): string => {
-    if (!amount || amount === 0) return 'Sem plano'
-    if (amount >= 99) return 'Plano Premium'
-    if (amount >= 79) return 'Plano Pro'
-    if (amount >= 49) return 'Plano Básico'
-    return 'Plano Básico'
+  // Determinar nome do plano baseado no plan_name ou plan_type (não no preço!)
+  const getPlanNameFromSubscription = (sub: Subscription | null): string => {
+    if (!sub) return 'Sem plano'
+
+    // Se tem plan_name salvo, usa ele
+    if (sub.plan_name) {
+      return sub.plan_name
+    }
+
+    // Senão, usa o plan_type para determinar o nome
+    switch (sub.plan_type) {
+      case 'premium':
+        return 'Plano Premium'
+      case 'pro':
+        return 'Plano Profissional'
+      case 'basic':
+        return 'Plano Básico'
+      default:
+        return 'Plano Básico'
+    }
   }
+
+  // Obter o tipo efetivo do plano (com retrocompatibilidade)
+  const effectivePlanType = subscription?.plan_type || null
 
   const planName = isCourtesy
     ? 'Acesso Cortesia'
     : hasPaidSubscription
-      ? getPlanName(subscription?.plan_amount)
+      ? getPlanNameFromSubscription(subscription)
       : isOnTrial
         ? `Período de teste (${trialDaysLeft} dias restantes)`
         : 'Sem plano'
@@ -257,6 +325,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         trialDaysLeft,
         trialExpired,
         planName,
+        planType: effectivePlanType,
         isCourtesy,
         hasPaidSubscription,
         refetch: fetchSubscription,

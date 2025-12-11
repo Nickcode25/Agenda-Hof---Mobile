@@ -22,7 +22,7 @@ import {
   useStripe,
   useElements
 } from '@stripe/react-stripe-js'
-import type { Plan } from './SelectPlan'
+import { type Plan, determinePlanTypeByName } from './SelectPlan'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY
@@ -185,11 +185,18 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
     const nextBillingDate = new Date()
     nextBillingDate.setDate(nextBillingDate.getDate() + 30)
 
+    // IMPORTANTE: Usar o NOME do plano para determinar o tipo, não o preço
+    // Isso evita bugs quando cupons de desconto são aplicados
+    const planType = plan?.type || determinePlanTypeByName(plan?.name || '')
+
     // 1. Inserir assinatura
     const { data: subscriptionRecord, error } = await supabase.from('user_subscriptions').insert({
       user_id: user?.id,
       status: 'active',
-      plan_amount: finalPrice,
+      plan_type: planType, // Tipo do plano (basic, pro, premium) - usa NOME, não preço
+      plan_name: plan?.name || '', // Nome completo do plano
+      plan_amount: plan?.price || 0, // Preço ORIGINAL (sem desconto)
+      discount_percentage: appliedCoupon?.discount_percentage || 0, // Desconto aplicado
       billing_cycle: 'MONTHLY',
       next_billing_date: nextBillingDate.toISOString(),
       payment_method: 'CREDIT_CARD',

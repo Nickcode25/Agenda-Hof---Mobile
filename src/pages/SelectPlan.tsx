@@ -5,6 +5,7 @@ import { Check, Crown, Zap, Star } from 'lucide-react'
 
 export interface Plan {
   id: string
+  type: 'basic' | 'pro' | 'premium' // Tipo do plano para salvar no banco
   name: string
   price: number
   originalPrice?: number
@@ -14,9 +15,23 @@ export interface Plan {
   icon: 'basic' | 'pro' | 'premium'
 }
 
+// Função para determinar o tipo do plano pelo NOME (não pelo preço)
+// Isso evita bugs quando cupons de desconto são aplicados
+export const determinePlanTypeByName = (planName: string): 'basic' | 'pro' | 'premium' => {
+  const nameLower = planName.toLowerCase()
+  if (nameLower.includes('premium')) {
+    return 'premium'
+  }
+  if (nameLower.includes('profissional') || nameLower.includes('pro')) {
+    return 'pro'
+  }
+  return 'basic'
+}
+
 const plans: Plan[] = [
   {
     id: 'basic',
+    type: 'basic',
     name: 'Básico',
     price: 49.90,
     description: 'Ideal para começar',
@@ -30,6 +45,7 @@ const plans: Plan[] = [
   },
   {
     id: 'pro',
+    type: 'pro',
     name: 'Profissional',
     price: 79.90,
     description: 'Para profissionais em crescimento',
@@ -44,6 +60,7 @@ const plans: Plan[] = [
   },
   {
     id: 'premium',
+    type: 'premium',
     name: 'Premium',
     price: 99.90,
     description: 'Solução completa',
