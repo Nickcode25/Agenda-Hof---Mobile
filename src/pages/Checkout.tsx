@@ -23,6 +23,8 @@ import {
   useElements
 } from '@stripe/react-stripe-js'
 import { type Plan, determinePlanTypeByName } from './SelectPlan'
+import { ApplePayButton } from '@/components/ApplePayButton'
+import { isIOSDevice, type StripePaymentResponse } from '@/lib/applePay'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
 const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY
@@ -76,6 +78,9 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
   const [cardNumberComplete, setCardNumberComplete] = useState(false)
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false)
   const [cardCvcComplete, setCardCvcComplete] = useState(false)
+
+  // Verificar se é iOS para mostrar Apple Pay
+  const showApplePay = isIOSDevice()
 
   // Calcular preco final
   const calculateFinalPrice = () => {
@@ -245,6 +250,32 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
     // Não precisamos duplicar aqui
   }
 
+  // Handler para sucesso do Apple Pay
+  const handleApplePaySuccess = async (result: StripePaymentResponse) => {
+    try {
+      // Salvar assinatura no Supabase (mesma lógica do cartão)
+      await saveSubscriptionToSupabase({
+        ...result,
+        cardLastDigits: result.cardLastDigits,
+        cardBrand: result.cardBrand || 'Apple Pay',
+      })
+
+      // Atualizar contexto de assinatura
+      await refetchSubscription()
+
+      // Chamar callback de sucesso
+      onSuccess()
+    } catch (err: any) {
+      console.error('Erro ao salvar assinatura Apple Pay:', err)
+      setError(err.message || 'Erro ao salvar assinatura. Entre em contato com o suporte.')
+    }
+  }
+
+  // Handler para erro do Apple Pay
+  const handleApplePayError = (errorMessage: string) => {
+    setError(errorMessage)
+  }
+
   // Processar pagamento
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -367,6 +398,35 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
           <p className="text-red-500 text-sm mt-2">{couponError}</p>
         )}
       </section>
+
+      {/* Apple Pay - só aparece em dispositivos iOS */}
+      {showApplePay && (
+        <section className="space-y-3">
+          <ApplePayButton
+            amount={finalPrice}
+            label={`Agenda HOF - ${plan.name}${appliedCoupon ? ` (${appliedCoupon.discount_percentage}% OFF)` : ''}`}
+            planId={plan.id}
+            customerEmail={user?.email}
+            customerId={user?.id}
+            couponId={appliedCoupon?.id}
+            discountPercentage={appliedCoupon?.discount_percentage}
+            type="subscribe"
+            style="black"
+            processWithStripe={true}
+            onStripeSuccess={handleApplePaySuccess}
+            onError={handleApplePayError}
+            onCancel={() => console.log('Apple Pay cancelado')}
+            disabled={processing}
+          />
+
+          {/* Divisor "ou" */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-surface-200" />
+            <span className="text-surface-400 text-sm">ou pague com cartao</span>
+            <div className="flex-1 h-px bg-surface-200" />
+          </div>
+        </section>
+      )}
 
       {/* Dados do Cartao */}
       <section className="card">

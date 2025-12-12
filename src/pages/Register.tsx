@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect, useRef } from 'react'
+import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -121,8 +121,6 @@ const fixEmailTypo = (email: string): string => {
   return email
 }
 
-type Step = 'form' | 'verification' | 'success'
-
 export function RegisterPage() {
   const navigate = useNavigate()
 
@@ -137,42 +135,10 @@ export function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // UI state
-  const [step, setStep] = useState<Step>('form')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [emailSuggestion, setEmailSuggestion] = useState('')
-
-  // Verification state
-  const [verificationCode, setVerificationCode] = useState('')
-  const [inputCode, setInputCode] = useState(['', '', '', '', '', ''])
-  const [timeLeft, setTimeLeft] = useState(900) // 15 minutos em segundos
-  const [canResend, setCanResend] = useState(false)
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-
-  // Timer para código de verificação
-  useEffect(() => {
-    if (step !== 'verification') return
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setCanResend(true)
-          clearInterval(timer)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [step])
-
-  // Formatar tempo restante
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
+  const [success, setSuccess] = useState(false)
 
   // Verificar typo no email
   const handleEmailChange = (value: string) => {
@@ -191,31 +157,7 @@ export function RegisterPage() {
     setPhone(formatted)
   }
 
-  // Gerar código de verificação
-  const generateCode = (): string => {
-    return Math.floor(100000 + Math.random() * 900000).toString()
-  }
-
-  // Enviar código por email
-  const sendVerificationEmail = async (code: string) => {
-    const response = await fetch('https://agenda-hof-production.up.railway.app/api/email/send-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: email.trim().toLowerCase(),
-        code: code,
-        userName: name.trim()
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('Erro ao enviar email de verificação')
-    }
-
-    return response.json()
-  }
-
-  // Validar formulário e enviar código
+  // Validar formulário e criar conta
   const handleSubmitForm = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
@@ -262,74 +204,13 @@ export function RegisterPage() {
     setLoading(true)
 
     try {
-      // Gerar e enviar código
-      const code = generateCode()
-      await sendVerificationEmail(code)
-
-      // Salvar código e ir para verificação
-      setVerificationCode(code)
-      setEmail(emailToUse)
-      setTimeLeft(900)
-      setCanResend(false)
-      setStep('verification')
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar email. Tente novamente.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Handler para input do código
-  const handleCodeInput = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return
-
-    const newCode = [...inputCode]
-    newCode[index] = value.slice(-1)
-    setInputCode(newCode)
-
-    // Auto-focus próximo input
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus()
-    }
-  }
-
-  // Handler para backspace no código
-  const handleCodeKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !inputCode[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus()
-    }
-  }
-
-  // Verificar código e criar conta
-  const handleVerifyCode = async () => {
-    const enteredCode = inputCode.join('')
-
-    if (enteredCode.length !== 6) {
-      setError('Digite o código completo')
-      return
-    }
-
-    if (timeLeft === 0) {
-      setError('Código expirado, solicite um novo')
-      return
-    }
-
-    if (enteredCode !== verificationCode) {
-      setError('Código incorreto')
-      return
-    }
-
-    setLoading(true)
-    setError('')
-
-    try {
       // Calcular trial de 7 dias
       const trialEndDate = new Date()
       trialEndDate.setDate(trialEndDate.getDate() + 7)
 
       // Criar conta no Supabase
-      const { error } = await supabase.auth.signUp({
-        email: email,
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: emailToUse,
         password: password,
         options: {
           data: {
@@ -340,45 +221,23 @@ export function RegisterPage() {
         }
       })
 
-      if (error) {
-        if (error.message.includes('already registered')) {
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
           throw new Error('Este email já está cadastrado')
         }
-        throw error
+        throw signUpError
       }
 
-      setStep('success')
+      setSuccess(true)
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Reenviar código
-  const handleResendCode = async () => {
-    if (!canResend) return
-
-    setLoading(true)
-    setError('')
-
-    try {
-      const code = generateCode()
-      await sendVerificationEmail(code)
-
-      setVerificationCode(code)
-      setInputCode(['', '', '', '', '', ''])
-      setTimeLeft(900)
-      setCanResend(false)
-    } catch (err: any) {
-      setError(err.message || 'Erro ao reenviar código.')
+      setError(err.message || 'Erro ao criar conta. Tente novamente.')
     } finally {
       setLoading(false)
     }
   }
 
   // Tela de sucesso
-  if (step === 'success') {
+  if (success) {
     return (
       <div className="min-h-screen flex flex-col bg-surface-100 pt-safe-top pb-safe-bottom">
         <div className="flex-1 flex flex-col justify-center px-6">
@@ -397,102 +256,6 @@ export function RegisterPage() {
               Fazer login
             </button>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Tela de verificação de código
-  if (step === 'verification') {
-    return (
-      <div className="min-h-screen flex flex-col bg-surface-100 pt-safe-top pb-safe-bottom relative overflow-hidden">
-        {/* Wave decoration */}
-        <div className="absolute bottom-0 left-0 right-0 h-48">
-          <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
-            <path d="M0,80 Q100,40 200,80 T400,80 L400,200 L0,200 Z" fill="#FFEDD5" />
-            <path d="M0,100 Q100,60 200,100 T400,100 L400,200 L0,200 Z" fill="#FDBA74" />
-            <path d="M0,120 Q100,80 200,120 T400,120 L400,200 L0,200 Z" fill="#FB923C" />
-            <path d="M0,140 Q100,100 200,140 T400,140 L400,200 L0,200 Z" fill="#F97316" />
-            <path d="M0,160 Q100,125 200,160 T400,160 L400,200 L0,200 Z" fill="#EA580C" />
-          </svg>
-        </div>
-
-        {/* Header */}
-        <div className="px-4 py-4">
-          <button
-            onClick={() => setStep('form')}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5 text-surface-600" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 flex flex-col justify-center px-6 relative z-10 pb-52">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
-              <Mail className="w-8 h-8 text-primary-500" />
-            </div>
-            <h1 className="text-2xl font-bold text-surface-800 text-center">Verificar email</h1>
-            <p className="text-surface-400 mt-2 text-sm text-center max-w-xs">
-              Digite o código de 6 dígitos enviado para {email}
-            </p>
-          </div>
-
-          {/* Code inputs */}
-          <div className="flex justify-center gap-2 mb-4">
-            {inputCode.map((digit, index) => (
-              <input
-                key={index}
-                ref={(el) => (inputRefs.current[index] = el)}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleCodeInput(index, e.target.value)}
-                onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-bold bg-white border border-surface-200 rounded-xl focus:border-primary-500 focus:outline-none"
-              />
-            ))}
-          </div>
-
-          {/* Timer */}
-          <p className="text-center text-surface-400 text-sm mb-4">
-            {timeLeft > 0 ? (
-              <>Código expira em <span className="font-medium text-primary-500">{formatTime(timeLeft)}</span></>
-            ) : (
-              <span className="text-red-500">Código expirado</span>
-            )}
-          </p>
-
-          {error && (
-            <p className="text-red-500 text-sm text-center mb-4">{error}</p>
-          )}
-
-          {/* Verify button */}
-          <button
-            onClick={handleVerifyCode}
-            disabled={loading || inputCode.join('').length !== 6}
-            className="w-full bg-primary-500 text-white font-semibold py-4 px-6 rounded-full disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-primary-500/30 active:scale-[0.98] transition-transform"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Verificando...
-              </>
-            ) : (
-              'Verificar código'
-            )}
-          </button>
-
-          {/* Resend button */}
-          <button
-            onClick={handleResendCode}
-            disabled={!canResend || loading}
-            className={`mt-4 text-sm font-medium ${canResend ? 'text-primary-500' : 'text-surface-400'}`}
-          >
-            {loading ? 'Enviando...' : 'Reenviar código'}
-          </button>
         </div>
       </div>
     )
@@ -734,10 +497,10 @@ export function RegisterPage() {
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Enviando...
+                Criando conta...
               </>
             ) : (
-              'Continuar'
+              'Criar conta'
             )}
           </button>
 
