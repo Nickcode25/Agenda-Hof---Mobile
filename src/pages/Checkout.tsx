@@ -57,7 +57,6 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
   const stripe = useStripe()
   const elements = useElements()
   const { user } = useAuth()
-  const navigate = useNavigate()
   const { refetch: refetchSubscription } = useSubscription()
 
   // Estados do formulario
@@ -152,22 +151,38 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
   }
 
   // Criar assinatura no backend via Stripe
+  // O backend cria a subscription no Stripe e salva no payment_history
+  // Após sucesso, o frontend salva na tabela user_subscriptions
   const createStripeSubscription = async (paymentMethodId: string) => {
+    // IMPORTANTE: Usar o NOME/TYPE do plano, não o preço com desconto
+    const planType = plan?.type || determinePlanTypeByName(plan?.name || '')
+
     const response = await fetch(`${BACKEND_URL}/api/stripe/create-subscription`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        // Dados do cliente
         customerEmail: user?.email,
-        customerName: user?.user_metadata?.name || cardholderName,
+        customerName: user?.user_metadata?.full_name || cardholderName,
         customerId: user?.id,
+
+        // Método de pagamento
         paymentMethodId: paymentMethodId,
+
+        // Dados do plano - ENVIAR PREÇO COM DESCONTO para cobrança
         amount: finalPrice,
+
+        // Metadados do plano - para rastreabilidade
         planName: `Agenda HOF - ${plan?.name}`,
         planId: plan?.id,
+        planType: planType, // basic, pro, premium
+        originalAmount: plan?.price, // Preço original SEM desconto
+
+        // Cupom de desconto
         couponId: appliedCoupon?.id || null,
-        discountPercentage: appliedCoupon?.discount_percentage || null
+        discountPercentage: appliedCoupon?.discount_percentage || 0
       })
     })
 
@@ -180,55 +195,54 @@ function CheckoutForm({ plan, onSuccess }: { plan: Plan; onSuccess: () => void }
   }
 
   // Salvar assinatura no Supabase
+  // O backend já salva no payment_history via webhook/diretamente
+  // Aqui salvamos na tabela user_subscriptions que é a fonte principal do app
   const saveSubscriptionToSupabase = async (subscriptionData: any) => {
-    // Calcular proxima data de cobranca (30 dias a partir de hoje)
-    const nextBillingDate = new Date()
-    nextBillingDate.setDate(nextBillingDate.getDate() + 30)
-
-    // IMPORTANTE: Usar o NOME do plano para determinar o tipo, não o preço
+    // IMPORTANTE: Usar o NOME/TYPE do plano para determinar o tipo, não o preço
     // Isso evita bugs quando cupons de desconto são aplicados
     const planType = plan?.type || determinePlanTypeByName(plan?.name || '')
 
-    // 1. Inserir assinatura
-    const { data: subscriptionRecord, error } = await supabase.from('user_subscriptions').insert({
+    // Usar a data de próxima cobrança retornada pelo backend (mais precisa)
+    // ou calcular 30 dias a partir de hoje como fallback
+    const nextBillingDate = subscriptionData.nextBillingDate
+      ? new Date(subscriptionData.nextBillingDate)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
+    // Inserir assinatura na tabela user_subscriptions
+    const { error } = await supabase.from('user_subscriptions').insert({
       user_id: user?.id,
-      status: 'active',
-      plan_type: planType, // Tipo do plano (basic, pro, premium) - usa NOME, não preço
-      plan_name: plan?.name || '', // Nome completo do plano
+      status: subscriptionData.status || 'active',
+
+      // Dados do plano - SALVAR TIPO E NOME, não depender do preço
+      plan_type: planType, // basic, pro, premium
+      plan_name: plan?.name || '', // Nome completo do plano (Básico, Profissional, Premium)
       plan_amount: plan?.price || 0, // Preço ORIGINAL (sem desconto)
-      discount_percentage: appliedCoupon?.discount_percentage || 0, // Desconto aplicado
+      discount_percentage: appliedCoupon?.discount_percentage || 0,
+
+      // Dados de cobrança
       billing_cycle: 'MONTHLY',
       next_billing_date: nextBillingDate.toISOString(),
+
+      // Dados do cartão (retornados pelo backend)
       payment_method: 'CREDIT_CARD',
       card_last_digits: subscriptionData.cardLastDigits || null,
       card_brand: subscriptionData.cardBrand || null,
-      started_at: new Date().toISOString(),
+
+      // IDs do Stripe (para sincronização com webhooks)
       stripe_subscription_id: subscriptionData.subscriptionId || null,
-      stripe_customer_id: subscriptionData.customerId || null
-    }).select().single()
+      stripe_customer_id: subscriptionData.customerId || null,
+
+      // Timestamps
+      started_at: new Date().toISOString()
+    })
 
     if (error) {
       console.error('Erro ao salvar assinatura:', error)
       throw new Error('Erro ao salvar assinatura: ' + error.message)
     }
 
-    // 2. Registrar pagamento no histórico
-    const { error: paymentError } = await supabase.from('payment_history').insert({
-      user_id: user?.id,
-      subscription_id: subscriptionRecord?.id || null,
-      amount: finalPrice,
-      status: 'approved',
-      payment_method: 'CREDIT_CARD',
-      stripe_payment_id: subscriptionData.paymentIntentId || null,
-      card_last_digits: subscriptionData.cardLastDigits || null,
-      card_brand: subscriptionData.cardBrand || null,
-      description: `Assinatura ${plan?.name} - ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
-    })
-
-    if (paymentError) {
-      console.error('Erro ao salvar histórico de pagamento:', paymentError)
-      // Não lançar erro aqui, pois a assinatura já foi criada
-    }
+    // NOTA: O histórico de pagamentos é salvo pelo backend via webhook
+    // Não precisamos duplicar aqui
   }
 
   // Processar pagamento
