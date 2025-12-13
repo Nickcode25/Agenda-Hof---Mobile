@@ -163,7 +163,7 @@ export function NewAppointmentPage() {
 
               {/* Lista de pacientes */}
               {showPatientSearch && (
-                <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-surface-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-surface-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                   {filteredPatients.length === 0 ? (
                     <div className="p-4 text-center text-surface-500">
                       {searchQuery ? 'Nenhum paciente encontrado' : 'Digite para buscar'}
@@ -279,7 +279,7 @@ export function NewAppointmentPage() {
       {/* Overlay para fechar busca */}
       {showPatientSearch && (
         <div
-          className="fixed inset-0 z-0"
+          className="fixed inset-0 z-40"
           onClick={() => setShowPatientSearch(false)}
         />
       )}
