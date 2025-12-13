@@ -18,16 +18,31 @@ export function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await signIn(email, password)
+    try {
+      const { error } = await signIn(email, password)
 
-    if (error) {
-      setError('Email ou senha incorretos')
+      if (error) {
+        // Mostrar erro real para debug
+        const errorMsg = error.message || 'Erro desconhecido'
+        if (errorMsg.includes('Invalid login credentials')) {
+          setError('Email ou senha incorretos')
+        } else if (errorMsg.includes('Load failed') || errorMsg.includes('fetch')) {
+          setError('Erro de conexão. Verifique sua internet.')
+        } else {
+          setError(`Erro: ${errorMsg}`)
+        }
+        setLoading(false)
+      }
+    } catch (err: any) {
+      setError(`Exceção: ${err?.message || 'Erro desconhecido'}`)
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white pt-safe-top pb-safe-bottom relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-white pb-safe-bottom relative overflow-hidden">
+      {/* Safe area top com cor de fundo */}
+      <div className="h-safe-top bg-white" />
       {/* Simplified wave decoration at bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none">
         <svg viewBox="0 0 400 120" className="w-full h-full" preserveAspectRatio="none">
@@ -54,7 +69,7 @@ export function LoginPage() {
             <img src="/logo.png" alt="Agenda HOF" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-surface-900 mt-6 text-2xl font-semibold text-center tracking-tight">
-            Bem-vindo de volta!
+            Bem-vindo
           </h1>
           <p className="text-surface-400 mt-2 text-sm text-center font-light">
             A sua clínica a um toque de distância.

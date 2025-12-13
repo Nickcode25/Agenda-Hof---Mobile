@@ -4,33 +4,33 @@ import { Calendar, Users, Settings } from 'lucide-react'
 const navItems = [
   { to: '/agenda', icon: Calendar, label: 'Agenda' },
   { to: '/patients', icon: Users, label: 'Pacientes' },
-  { to: '/settings', icon: Settings, label: 'Config' },
+  { to: '/settings', icon: Settings, label: 'Ajustes' },
 ]
 
 export function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-surface-100 pb-safe-bottom shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-      <div className="flex items-center justify-around h-14">
+    <nav className="ios-tabbar">
+      <div className="flex items-center justify-around h-[50px]">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 w-full h-full transition-all ${
                 isActive
                   ? 'text-primary-500'
-                  : 'text-surface-400 active:text-primary-400'
+                  : 'text-[#8e8e93] active:text-primary-400'
               }`
             }
           >
             {({ isActive }) => (
               <>
                 <item.icon
-                  className="w-5 h-5"
-                  strokeWidth={isActive ? 2.5 : 1.5}
+                  className={`w-[22px] h-[22px] transition-transform ${isActive ? 'scale-105' : ''}`}
+                  strokeWidth={isActive ? 2.2 : 1.8}
                   fill={isActive ? 'currentColor' : 'none'}
                 />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span className={`text-[10px] leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>
                   {item.label}
                 </span>
               </>

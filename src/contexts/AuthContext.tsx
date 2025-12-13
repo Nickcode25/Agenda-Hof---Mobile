@@ -17,16 +17,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Busca sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
+    // Busca sessão inicial com timeout para evitar loading infinito
+    const initSession = async () => {
+      try {
+        // Timeout de 10 segundos para evitar loading infinito
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout ao buscar sessão')), 10000)
+        })
+
+        const sessionPromise = supabase.auth.getSession().then(({ data: { session } }) => session)
+
+        const session = await Promise.race([sessionPromise, timeoutPromise])
+        setSession(session)
+      } catch (error) {
+        console.log('Erro ao buscar sessão (pode ser normal na primeira vez):', error)
+        setSession(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initSession()
 
     // Escuta mudanças de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
+        setLoading(false)
       }
     )
 
@@ -34,10 +51,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log('Tentando login com:', email)
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    console.log('Resultado login:', { data, error })
+    if (error) {
+      console.error('Erro de login:', error.message, error)
+    }
     return { error }
   }
 

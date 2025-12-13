@@ -46,7 +46,8 @@ export function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex flex-col bg-surface-100 pt-safe-top pb-safe-bottom">
+      <div className="min-h-screen flex flex-col bg-surface-100 pb-safe-bottom">
+        <div className="h-safe-top bg-surface-100" />
         <div className="flex-1 flex flex-col justify-center px-6">
           <div className="flex flex-col items-center text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -69,7 +70,8 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface-100 pt-safe-top pb-safe-bottom relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-surface-100 pb-safe-bottom relative overflow-hidden">
+      <div className="h-safe-top bg-surface-100" />
       {/* Wave decoration at bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-48">
         <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">

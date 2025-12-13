@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   format,
   addDays,
@@ -92,6 +92,7 @@ export function AgendaPage() {
     if (user) {
       fetchAppointments()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, user])
 
   // Scroll para o primeiro agendamento do dia ou horário atual
@@ -347,8 +348,8 @@ export function AgendaPage() {
     return items.sort((a, b) => a.start.getTime() - b.start.getTime())
   }
 
-  // Atualizar status de um agendamento
-  const updateAppointmentStatus = async (id: string, status: string) => {
+  // Atualizar status de um agendamento - memoizado
+  const updateAppointmentStatus = useCallback(async (id: string, status: string) => {
     const { error } = await supabase
       .from('appointments')
       .update({ status, updated_at: new Date().toISOString() })
@@ -363,9 +364,9 @@ export function AgendaPage() {
     setAppointments((prev) =>
       prev.map((apt) => (apt.id === id ? { ...apt, status: status as Appointment['status'] } : apt))
     )
-  }
+  }, [])
 
-  const deleteAppointment = async (id: string) => {
+  const deleteAppointment = useCallback(async (id: string) => {
     const { error } = await supabase
       .from('appointments')
       .delete()
@@ -379,7 +380,7 @@ export function AgendaPage() {
     // Remover da lista local
     setAppointments((prev) => prev.filter((apt) => apt.id !== id))
     return true
-  }
+  }, [])
 
   // Dias da semana (começa na segunda)
   const weekDays = useMemo(() => {
@@ -391,19 +392,19 @@ export function AgendaPage() {
 
   return (
     <div className="h-screen bg-white flex flex-col pb-16 overflow-hidden">
-      {/* Top Bar - Compacto para mobile com Dynamic Island spacing */}
-      <div className="bg-primary-500 text-white safe-area-top">
-        {/* Extra padding for Dynamic Island */}
-        <div className="h-2" />
-        <div className="px-3 py-2 flex items-center justify-between">
+      {/* Top Bar - Estende até o topo da tela cobrindo a status bar */}
+      <header className="sticky top-0 z-10 bg-primary-500 shadow-md text-white">
+        {/* Área da status bar com cor sólida */}
+        <div className="h-safe-top bg-primary-500" />
+        <div className="flex items-center justify-between h-14 px-4">
           <button
             onClick={openDatePicker}
             className="flex items-center gap-1 active:opacity-80"
           >
-            <span className="text-sm font-semibold capitalize">
+            <span className="text-lg font-semibold capitalize text-white">
               {format(selectedDate, "d MMM", { locale: ptBR })}
             </span>
-            <ChevronDown className="w-4 h-4 opacity-80" />
+            <ChevronDown className="w-4 h-4 opacity-80 text-white" />
           </button>
 
           {/* Botão Hoje - aparece se não for hoje */}
@@ -430,7 +431,7 @@ export function AgendaPage() {
             ))}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Week Days Header - Compacto com swipe */}
       {viewMode === 'day' && (
@@ -511,10 +512,10 @@ export function AgendaPage() {
         </>
       )}
 
-      {/* FAB - 56px para touch target ideal no iOS */}
+      {/* FAB - 56px para touch target ideal no iOS, posicionado acima da tab bar */}
       <button
         onClick={() => navigate(`/appointment/new?date=${format(selectedDate, 'yyyy-MM-dd')}`)}
-        className="fixed bottom-20 right-4 w-14 h-14 bg-primary-500 text-white rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center active:scale-95 active:bg-primary-600 z-10 transition-transform"
+        className="fixed bottom-24 right-4 w-14 h-14 bg-primary-500 text-white rounded-full shadow-lg shadow-primary-500/30 flex items-center justify-center active:scale-95 active:bg-primary-600 z-10 transition-transform"
         aria-label="Novo agendamento"
       >
         <Plus className="w-7 h-7" strokeWidth={2.5} />

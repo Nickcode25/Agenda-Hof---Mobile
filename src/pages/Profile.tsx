@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { Header } from '@/components/layout/Header'
 import { Loading } from '@/components/ui/Loading'
-import { Camera, User, MapPin, Phone, Check } from 'lucide-react'
+import { Camera, User, Check } from 'lucide-react'
 
 interface ProfileData {
   // Informações Pessoais
@@ -46,7 +45,6 @@ const initialProfileData: ProfileData = {
 }
 
 export function ProfilePage() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -222,17 +220,18 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 pb-24">
+    <div className="min-h-screen bg-[#f2f2f7] pb-24">
       <Header
         title="Perfil"
         showBack
+        variant="default"
         rightAction={
           <button
             onClick={handleSave}
             disabled={saving}
-            className="text-primary-500 font-semibold disabled:opacity-50"
+            className="text-primary-500 text-[17px] font-normal disabled:opacity-50 active:opacity-60"
           >
-            {saving ? 'Salvando...' : 'Salvar'}
+            {saving ? 'Salvando...' : 'OK'}
           </button>
         }
       />
@@ -251,11 +250,9 @@ export function ProfilePage() {
 
       <div className="px-4 py-6 space-y-6">
         {/* Seção 1: Informações Pessoais */}
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <User className="w-5 h-5 text-primary-500" />
-            <h2 className="font-semibold text-surface-900">Informações Pessoais</h2>
-          </div>
+        <section>
+          <p className="ios-section-header mb-2">Informações Pessoais</p>
+          <div className="ios-list p-4">
 
           {/* Foto de Perfil */}
           <div className="flex justify-center mb-6">
@@ -315,28 +312,27 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-surface-600 mb-1">
+              <label className="block text-[13px] font-normal text-[#8e8e93] mb-1">
                 E-mail
               </label>
               <input
                 type="email"
                 value={user?.email || ''}
                 disabled
-                className="input bg-surface-50 text-surface-500 cursor-not-allowed"
+                className="input bg-[#f2f2f7] text-[#8e8e93] cursor-not-allowed"
               />
-              <p className="text-xs text-surface-400 mt-1">
+              <p className="text-[11px] text-[#8e8e93] mt-1">
                 O e-mail não pode ser alterado
               </p>
             </div>
           </div>
+          </div>
         </section>
 
         {/* Seção 2: Endereço */}
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <MapPin className="w-5 h-5 text-primary-500" />
-            <h2 className="font-semibold text-surface-900">Endereço</h2>
-          </div>
+        <section>
+          <p className="ios-section-header mb-2">Endereço</p>
+          <div className="ios-list p-4">
 
           <div className="space-y-4">
             <div>
@@ -460,14 +456,13 @@ export function ProfilePage() {
               </div>
             </div>
           </div>
+          </div>
         </section>
 
         {/* Seção 3: Telefone */}
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <Phone className="w-5 h-5 text-primary-500" />
-            <h2 className="font-semibold text-surface-900">Telefone</h2>
-          </div>
+        <section>
+          <p className="ios-section-header mb-2">Telefone</p>
+          <div className="ios-list p-4">
 
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
@@ -513,13 +508,14 @@ export function ProfilePage() {
               </div>
             </div>
           </div>
+          </div>
         </section>
 
         {/* Botão Salvar Mobile */}
         <button
           onClick={handleSave}
           disabled={saving}
-          className="btn-primary w-full flex items-center justify-center gap-2"
+          className="btn-primary w-full flex items-center justify-center gap-2 rounded-xl"
         >
           {saving ? (
             <>
@@ -527,10 +523,7 @@ export function ProfilePage() {
               Salvando...
             </>
           ) : (
-            <>
-              <Check className="w-5 h-5" />
-              Salvar Alterações
-            </>
+            'Salvar Alterações'
           )}
         </button>
       </div>

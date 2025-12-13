@@ -1,36 +1,44 @@
-import { useEffect, useState } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { App as CapacitorApp, URLOpenListenerEvent } from '@capacitor/app'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { SubscriptionProvider, useSubscription } from '@/contexts/SubscriptionContext'
-import { NotificationProvider, useNotifications } from '@/contexts/NotificationContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { BottomNav } from '@/components/layout/BottomNav'
-import {
-  NotificationPermissionModal,
-  shouldShowNotificationModal,
-} from '@/components/NotificationPermissionModal'
 import { Loading } from '@/components/ui/Loading'
 import { useSwipeBack } from '@/hooks/useSwipeBack'
-import { LoginPage } from '@/pages/Login'
-import { AgendaPage } from '@/pages/Agenda'
-import { PatientsPage } from '@/pages/Patients'
-import { PatientDetailsPage } from '@/pages/PatientDetails'
-import { NewPatientPage } from '@/pages/NewPatient'
-import { EditPatientPage } from '@/pages/EditPatient'
-import { NewAppointmentPage } from '@/pages/NewAppointment'
-import { SettingsPage } from '@/pages/Settings'
-import { PlansPage } from '@/pages/Plans'
-import { SubscriptionBlockedPage } from '@/pages/SubscriptionBlocked'
-import { ImportContactsPage } from '@/pages/ImportContacts'
-import { ForgotPasswordPage } from '@/pages/ForgotPassword'
-import { ResetPasswordPage } from '@/pages/ResetPassword'
-import { RegisterPage } from '@/pages/Register'
-import { NotificationsPage } from '@/pages/Notifications'
-import { ProfilePage } from '@/pages/Profile'
-import { MySubscriptionPage } from '@/pages/MySubscription'
-import { SelectPlanPage } from '@/pages/SelectPlan'
-import { CheckoutPage } from '@/pages/Checkout'
-import { PaymentHistoryPage } from '@/pages/PaymentHistory'
+
+// Lazy load all pages for code splitting
+const LoginPage = lazy(() => import('@/pages/Login').then(m => ({ default: m.LoginPage })))
+const RegisterPage = lazy(() => import('@/pages/Register').then(m => ({ default: m.RegisterPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPassword').then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPassword').then(m => ({ default: m.ResetPasswordPage })))
+
+// Main app pages - lazy loaded
+const AgendaPage = lazy(() => import('@/pages/Agenda').then(m => ({ default: m.AgendaPage })))
+const PatientsPage = lazy(() => import('@/pages/Patients').then(m => ({ default: m.PatientsPage })))
+const SettingsPage = lazy(() => import('@/pages/Settings').then(m => ({ default: m.SettingsPage })))
+
+// Patient management - lazy loaded
+const PatientDetailsPage = lazy(() => import('@/pages/PatientDetails').then(m => ({ default: m.PatientDetailsPage })))
+const NewPatientPage = lazy(() => import('@/pages/NewPatient').then(m => ({ default: m.NewPatientPage })))
+const EditPatientPage = lazy(() => import('@/pages/EditPatient').then(m => ({ default: m.EditPatientPage })))
+const ImportContactsPage = lazy(() => import('@/pages/ImportContacts').then(m => ({ default: m.ImportContactsPage })))
+
+// Appointment - lazy loaded
+const NewAppointmentPage = lazy(() => import('@/pages/NewAppointment').then(m => ({ default: m.NewAppointmentPage })))
+
+// Subscription & Payment - lazy loaded
+const PlansPage = lazy(() => import('@/pages/Plans').then(m => ({ default: m.PlansPage })))
+const SelectPlanPage = lazy(() => import('@/pages/SelectPlan').then(m => ({ default: m.SelectPlanPage })))
+const CheckoutPage = lazy(() => import('@/pages/Checkout').then(m => ({ default: m.CheckoutPage })))
+const MySubscriptionPage = lazy(() => import('@/pages/MySubscription').then(m => ({ default: m.MySubscriptionPage })))
+const PaymentHistoryPage = lazy(() => import('@/pages/PaymentHistory').then(m => ({ default: m.PaymentHistoryPage })))
+const SubscriptionBlockedPage = lazy(() => import('@/pages/SubscriptionBlocked').then(m => ({ default: m.SubscriptionBlockedPage })))
+
+// Other - lazy loaded
+const NotificationsPage = lazy(() => import('@/pages/Notifications').then(m => ({ default: m.NotificationsPage })))
+const ProfilePage = lazy(() => import('@/pages/Profile').then(m => ({ default: m.ProfilePage })))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -68,9 +76,7 @@ function SubscriptionRequiredRoute({ children }: { children: React.ReactNode }) 
 
 function AppRoutes() {
   const { user, loading } = useAuth()
-  const { refreshNotificationStatus, scheduleRemindersForToday } = useNotifications()
   const navigate = useNavigate()
-  const [showNotificationModal, setShowNotificationModal] = useState(false)
 
   // Habilitar swipe back para voltar à página anterior
   useSwipeBack()
@@ -94,36 +100,18 @@ function AppRoutes() {
     }
   }, [navigate])
 
-  // Verifica se deve mostrar modal de permissão após login
-  useEffect(() => {
-    if (user && !loading) {
-      // Pequeno delay para garantir que a UI carregou
-      const timer = setTimeout(() => {
-        if (shouldShowNotificationModal()) {
-          setShowNotificationModal(true)
-        }
-      }, 500)
-
-      return () => clearTimeout(timer)
-    }
-  }, [user, loading])
-
-  const handleNotificationPermissionGranted = () => {
-    refreshNotificationStatus()
-    scheduleRemindersForToday()
-  }
-
   if (loading) {
     return <Loading fullScreen text="Carregando..." />
   }
 
   return (
     <>
-      <Routes>
-        <Route
-          path="/login"
-          element={user ? <Navigate to="/agenda" replace /> : <LoginPage />}
-        />
+      <Suspense fallback={<Loading fullScreen text="Carregando..." />}>
+        <Routes>
+          <Route
+            path="/login"
+            element={user ? <Navigate to="/agenda" replace /> : <LoginPage />}
+          />
         <Route
           path="/forgot-password"
           element={user ? <Navigate to="/agenda" replace /> : <ForgotPasswordPage />}
@@ -268,18 +256,11 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/agenda" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/agenda" replace />} />
+        </Routes>
+      </Suspense>
 
       {user && <BottomNav />}
-
-      {/* Modal de permissão de notificações */}
-      {showNotificationModal && (
-        <NotificationPermissionModal
-          onClose={() => setShowNotificationModal(false)}
-          onPermissionGranted={handleNotificationPermissionGranted}
-        />
-      )}
     </>
   )
 }

@@ -43,7 +43,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setNotificationsEnabled(settings.enabled && settings.permission === 'granted')
   }
 
-  // Inicializa notificações quando o app inicia
+  // Inicializa notificações SOMENTE após o login
   useEffect(() => {
     async function init() {
       // Verifica configurações salvas
@@ -53,10 +53,13 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         return
       }
 
-      // Inicializa notificações locais (solicita permissão se necessário)
-      const localEnabled = await initLocalNotifications()
-      if (localEnabled) {
-        refreshNotificationStatus()
+      // Só solicita permissão se o usuário estiver logado
+      if (user) {
+        // Inicializa notificações locais (solicita permissão do iOS)
+        const localEnabled = await initLocalNotifications()
+        if (localEnabled) {
+          refreshNotificationStatus()
+        }
       }
 
       // Configura listener para quando notificação é clicada
@@ -67,7 +70,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     init()
-  }, [navigate])
+  }, [navigate, user])
 
   // Agenda lembretes para consultas do dia quando usuário loga ou configuração muda
   useEffect(() => {

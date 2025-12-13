@@ -66,6 +66,7 @@ export function SubscriptionBlockedPage() {
 
   return (
     <div className="min-h-screen bg-surface-50 flex flex-col">
+      <div className="h-safe-top bg-surface-50" />
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {/* Ícone */}
         <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${

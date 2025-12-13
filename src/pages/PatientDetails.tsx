@@ -149,10 +149,10 @@ export function PatientDetailsPage() {
 
   return (
     <div className="min-h-screen bg-surface-50 pb-20">
-      {/* Header compacto com Dynamic Island spacing */}
-      <div className="bg-primary-500 text-white safe-area-top">
-        {/* Extra padding for Dynamic Island */}
-        <div className="h-2" />
+      {/* Header compacto com safe area para status bar */}
+      <div className="bg-primary-500 text-white">
+        {/* Safe area top */}
+        <div className="h-safe-top bg-primary-500" />
         <div className="px-2 py-2 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}

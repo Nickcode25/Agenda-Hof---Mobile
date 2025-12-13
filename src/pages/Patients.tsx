@@ -1,15 +1,20 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, Plus, User, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import { Header } from '@/components/layout/Header'
 import { Avatar } from '@/components/ui/Avatar'
 import { Loading } from '@/components/ui/Loading'
 import type { Patient } from '@/types/database'
 
 // Alphabet for the sidebar index
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('')
+
+// Virtual list item types
+type VirtualListItem =
+  | { type: 'header'; letter: string; key: string }
+  | { type: 'patient'; patient: Patient; isLast: boolean; key: string }
 
 export function PatientsPage() {
   const navigate = useNavigate()
@@ -19,7 +24,6 @@ export function PatientsPage() {
   const [search, setSearch] = useState('')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
-  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   useEffect(() => {
     if (user) {
@@ -79,47 +83,92 @@ export function PatientsPage() {
     })
   }, [filteredPatients])
 
+  // Flatten list for virtualization (header + patients)
+  const virtualItems = useMemo((): VirtualListItem[] => {
+    const items: VirtualListItem[] = []
+
+    groupedPatients.forEach(([letter, patientsInGroup]) => {
+      // Add header
+      items.push({
+        type: 'header',
+        letter,
+        key: `header-${letter}`,
+      })
+
+      // Add patients in group
+      patientsInGroup.forEach((patient, index) => {
+        items.push({
+          type: 'patient',
+          patient,
+          isLast: index === patientsInGroup.length - 1,
+          key: `patient-${patient.id}`,
+        })
+      })
+    })
+
+    return items
+  }, [groupedPatients])
+
   // Get available letters for the sidebar
   const availableLetters = useMemo(() => {
     return new Set(groupedPatients.map(([letter]) => letter))
   }, [groupedPatients])
 
-  // Scroll to section when tapping on alphabet
+  // Setup virtual scrolling
+  const rowVirtualizer = useVirtualizer({
+    count: virtualItems.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: (index) => {
+      const item = virtualItems[index]
+      // Headers: 24px, Patients: 52px
+      return item?.type === 'header' ? 24 : 52
+    },
+    overscan: 5, // Render 5 extra items above/below viewport
+  })
+
+  // Scroll to letter for alphabet sidebar
   const scrollToLetter = (letter: string) => {
-    const section = sectionRefs.current[letter]
-    if (section) {
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const index = virtualItems.findIndex(
+      (item) => item.type === 'header' && item.letter === letter
+    )
+    if (index !== -1) {
+      rowVirtualizer.scrollToIndex(index, { align: 'start' })
     }
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20 flex flex-col">
-      <Header
-        title="Pacientes"
-        rightAction={
-          <div className="flex items-center -mr-2">
+    <div className="min-h-screen bg-[#f2f2f7] pb-20 flex flex-col">
+      {/* Safe area top com cor de fundo */}
+      <div className="h-safe-top bg-[#f2f2f7]" />
+      {/* iOS Large Title Header */}
+      <div className="bg-[#f2f2f7]">
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <h1 className="text-[34px] font-bold text-surface-900 tracking-tight">
+            Pacientes
+          </h1>
+          <div className="flex items-center gap-1">
             <button
               onClick={() => navigate('/import-contacts')}
-              className="w-9 h-9 flex items-center justify-center text-white active:opacity-60 transition-opacity"
+              className="w-10 h-10 flex items-center justify-center text-primary-500 active:opacity-60 transition-opacity rounded-full"
               aria-label="Importar contatos"
             >
-              <Upload className="w-5 h-5" strokeWidth={2} />
+              <Upload className="w-[22px] h-[22px]" strokeWidth={2} />
             </button>
             <button
               onClick={() => navigate('/patient/new')}
-              className="w-9 h-9 flex items-center justify-center text-white active:opacity-60 transition-opacity"
+              className="w-10 h-10 flex items-center justify-center text-primary-500 active:opacity-60 transition-opacity rounded-full"
               aria-label="Novo paciente"
             >
-              <Plus className="w-6 h-6" strokeWidth={2} />
+              <Plus className="w-7 h-7" strokeWidth={2} />
             </button>
           </div>
-        }
-      />
+        </div>
+      </div>
 
-      {/* Search Bar */}
-      <div className="bg-surface-50 px-4 py-2 border-b border-surface-100">
+      {/* iOS Search Bar */}
+      <div className="bg-[#f2f2f7] px-4 py-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-[#8e8e93]" />
           <input
             type="text"
             value={search}
@@ -127,15 +176,15 @@ export function PatientsPage() {
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
             placeholder="Buscar"
-            className={`w-full bg-surface-100 rounded-lg py-2 pl-9 pr-4 text-[16px] text-surface-900 placeholder:text-surface-400 transition-all ${
-              isSearchFocused ? 'ring-2 ring-primary-500/30 bg-white' : ''
+            className={`w-full bg-[#e5e5ea] rounded-[10px] py-[7px] pl-8 pr-4 text-[17px] text-surface-900 placeholder:text-[#8e8e93] transition-all ${
+              isSearchFocused ? 'bg-white ring-1 ring-[#c7c7cc]' : ''
             }`}
           />
         </div>
       </div>
 
       {/* Main Content with Alphabet Sidebar */}
-      <div className="flex-1 flex relative overflow-hidden bg-surface-50">
+      <div className="flex-1 flex relative overflow-hidden bg-[#f2f2f7]">
         {/* Patient List */}
         <div
           ref={listRef}
@@ -147,76 +196,91 @@ export function PatientsPage() {
             </div>
           ) : filteredPatients.length === 0 ? (
             <div className="text-center py-16 px-4">
-              <div className="w-20 h-20 bg-surface-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-10 h-10 text-surface-400" />
+              <div className="w-20 h-20 bg-[#e5e5ea] rounded-full flex items-center justify-center mx-auto mb-4">
+                <User className="w-10 h-10 text-[#8e8e93]" />
               </div>
-              <p className="text-surface-700 font-medium text-lg">
+              <p className="text-surface-900 font-semibold text-[17px]">
                 {search ? 'Nenhum paciente encontrado' : 'Nenhum paciente cadastrado'}
               </p>
-              <p className="text-surface-400 text-sm mt-1">
+              <p className="text-[#8e8e93] text-[15px] mt-1">
                 {search ? 'Tente outra busca' : 'Toque no + para cadastrar'}
               </p>
             </div>
           ) : (
-            <div className="pb-4">
-              {groupedPatients.map(([letter, patientsInGroup]) => (
-                <div
-                  key={letter}
-                  ref={(el) => { sectionRefs.current[letter] = el }}
-                >
-                  {/* Letter Section Header */}
-                  <div className="sticky top-0 z-10 bg-surface-50 px-5 py-0.5">
-                    <span className="text-[13px] font-semibold text-surface-500">
-                      {letter}
-                    </span>
-                  </div>
+            <div
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                width: '100%',
+                position: 'relative',
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const item = virtualItems[virtualRow.index]
+                if (!item) return null
 
-                  {/* Patient Items */}
-                  <div className="bg-white">
-                    {patientsInGroup.map((patient, index) => (
-                      <button
-                        key={patient.id}
-                        onClick={() => navigate(`/patient/${patient.id}`)}
-                        className="w-full flex items-center px-5 py-2.5 active:bg-surface-50 transition-colors relative"
-                      >
-                        <Avatar
-                          name={patient.name}
-                          src={patient.photo_url || undefined}
-                          size="md"
-                        />
-                        <span className="flex-1 ml-3 text-left font-normal text-[17px] text-surface-900 truncate">
-                          {patient.name}
+                return (
+                  <div
+                    key={item.key}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                  >
+                    {item.type === 'header' ? (
+                      <div className="sticky top-0 z-10 bg-[#f2f2f7] px-5 py-1">
+                        <span className="text-[13px] font-semibold text-[#8e8e93]">
+                          {item.letter}
                         </span>
-                        {/* iOS Chevron */}
-                        <svg
-                          className="w-4 h-4 text-surface-300 ml-2 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      </div>
+                    ) : (
+                      <div className="bg-white mx-4 first:rounded-t-xl last:rounded-b-xl">
+                        <button
+                          onClick={() => navigate(`/patient/${item.patient.id}`)}
+                          className="w-full flex items-center px-4 py-2.5 active:bg-[#f2f2f7] transition-colors relative"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M9 5l7 7-7 7"
+                          <Avatar
+                            name={item.patient.name}
+                            src={item.patient.photo_url || undefined}
+                            size="md"
                           />
-                        </svg>
-                        {/* iOS-style separator line (starts after avatar, not on last item) */}
-                        {index < patientsInGroup.length - 1 && (
-                          <div className="absolute left-[68px] right-0 bottom-0 h-[0.5px] bg-surface-200" />
-                        )}
-                      </button>
-                    ))}
+                          <span className="flex-1 ml-3 text-left font-normal text-[17px] text-surface-900 truncate">
+                            {item.patient.name}
+                          </span>
+                          {/* iOS Chevron */}
+                          <svg
+                            className="w-[14px] h-[14px] text-[#c7c7cc] ml-2 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                          {/* iOS-style separator line (not on last item in group) */}
+                          {!item.isLast && (
+                            <div className="absolute left-[60px] right-0 bottom-0 h-[0.5px] bg-[#c7c7cc]/50" />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
 
         {/* Alphabet Sidebar - iOS Style */}
         {!loading && filteredPatients.length > 0 && !search && (
-          <div className="absolute right-0.5 top-0 bottom-0 flex flex-col justify-center py-2 z-20">
+          <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-center py-2 z-20 pr-0.5">
             <div className="flex flex-col items-center">
               {ALPHABET.map((letter) => {
                 const isAvailable = availableLetters.has(letter)
@@ -224,10 +288,10 @@ export function PatientsPage() {
                   <button
                     key={letter}
                     onClick={() => isAvailable && scrollToLetter(letter)}
-                    className={`w-4 h-[14px] flex items-center justify-center text-[10px] font-semibold transition-opacity ${
+                    className={`w-[18px] h-[13px] flex items-center justify-center text-[11px] font-semibold transition-opacity ${
                       isAvailable
-                        ? 'text-info active:opacity-50'
-                        : 'text-surface-300'
+                        ? 'text-primary-500 active:scale-150'
+                        : 'text-[#c7c7cc]'
                     }`}
                     disabled={!isAvailable}
                   >
