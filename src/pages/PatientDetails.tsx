@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO, differenceInYears } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Phone, Mail, Calendar, FileText, Edit2, MapPin, Copy, Check, ChevronLeft } from 'lucide-react'
+import { Phone, Mail, Calendar, FileText, Edit2, MapPin, Copy, Check, ChevronLeft, CheckCircle, Clock } from 'lucide-react'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 // WhatsApp icon component
 const WhatsAppIcon = ({ className }: { className?: string }) => (
@@ -13,6 +14,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 import { supabase } from '@/lib/supabase'
 import { Avatar } from '@/components/ui/Avatar'
 import { Loading } from '@/components/ui/Loading'
+import { parsePlannedProcedures } from '@/types/database'
 import type { Patient, Appointment } from '@/types/database'
 
 const statusLabels: Record<string, string> = {
@@ -34,6 +36,10 @@ const statusColors: Record<string, string> = {
 export function PatientDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+
+  // Status bar com icones brancos (header laranja)
+  useStatusBar('dark')
+
   const [patient, setPatient] = useState<Patient | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,22 +60,61 @@ export function PatientDetailsPage() {
       .single()
 
     if (patientData) {
+      console.log('[PatientDetails] Patient data loaded:', {
+        id: patientData.id,
+        name: patientData.name,
+        planned_procedures: patientData.planned_procedures,
+        planned_procedures_type: typeof patientData.planned_procedures
+      })
       setPatient(patientData)
-    }
 
-    // Busca histórico de agendamentos
-    const { data: appointmentsData } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('patient_id', id!)
-      .order('start', { ascending: false })
-      .limit(10)
+      // Busca TODO o histórico de agendamentos (sem limite)
+      // Busca por patient_id OU por patient_name (para compatibilidade com agendamentos do site)
+      const { data: appointmentsData } = await supabase
+        .from('appointments')
+        .select('*')
+        .or(`patient_id.eq.${id},patient_name.ilike.${patientData.name}`)
+        .order('start', { ascending: false })
 
-    if (appointmentsData) {
-      setAppointments(appointmentsData)
+      if (appointmentsData) {
+        // Remove duplicatas (caso o mesmo agendamento apareça por ID e nome)
+        const uniqueAppointments = appointmentsData.filter((apt, index, self) =>
+          index === self.findIndex(a => a.id === apt.id)
+        )
+        setAppointments(uniqueAppointments)
+      }
     }
 
     setLoading(false)
+  }
+
+  // Parse procedimentos planejados do paciente
+  const plannedProcedures = useMemo(() => {
+    if (!patient?.planned_procedures) {
+      console.log('[PatientDetails] No planned_procedures field')
+      return []
+    }
+    console.log('[PatientDetails] Raw planned_procedures:', patient.planned_procedures)
+    const parsed = parsePlannedProcedures(patient.planned_procedures)
+    console.log('[PatientDetails] Parsed planned_procedures:', parsed)
+    return parsed
+  }, [patient?.planned_procedures])
+
+  // Separar procedimentos concluídos e pendentes
+  const completedProcedures = useMemo(() => {
+    return plannedProcedures.filter(p => p.status === 'completed')
+  }, [plannedProcedures])
+
+  const pendingProcedures = useMemo(() => {
+    return plannedProcedures.filter(p => p.status === 'pending')
+  }, [plannedProcedures])
+
+  // Formatar valor em Real
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value)
   }
 
   const calculateAge = (birthDate: string) => {
@@ -302,10 +347,48 @@ export function PatientDetailsPage() {
         </div>
       )}
 
-      {/* Recent Appointments - Cards clicáveis */}
+      {/* Procedimentos Pendentes */}
+      {pendingProcedures.length > 0 && (
+        <div className="px-4 pb-4">
+          <h2 className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-2 px-1">
+            Procedimentos Pendentes
+          </h2>
+          <div className="space-y-2">
+            {pendingProcedures.map((procedure) => (
+              <div
+                key={procedure.id}
+                className="bg-white rounded-xl shadow-sm px-4 py-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      <p className="font-semibold text-surface-900 text-sm">
+                        {procedure.procedureName}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-surface-400">
+                      <span>Qtd: {procedure.quantity}</span>
+                      <span>{formatCurrency(procedure.totalValue)}</span>
+                    </div>
+                    {procedure.notes && (
+                      <p className="text-xs text-surface-500 mt-1 italic">{procedure.notes}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                    Pendente
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de Agendamentos */}
       <div className="px-4 pb-4">
         <h2 className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-2 px-1">
-          Histórico recente
+          Histórico de Agendamentos
         </h2>
         {appointments.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm text-center py-8">
@@ -341,6 +424,49 @@ export function PatientDetailsPage() {
           </div>
         )}
       </div>
+
+      {/* Procedimentos Concluídos */}
+      {completedProcedures.length > 0 && (
+        <div className="px-4 pb-4">
+          <h2 className="text-xs font-bold text-surface-400 uppercase tracking-wider mb-2 px-1">
+            Procedimentos Concluídos
+          </h2>
+          <div className="space-y-2">
+            {completedProcedures.map((procedure) => (
+              <div
+                key={procedure.id}
+                className="bg-white rounded-xl shadow-sm px-4 py-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />
+                      <p className="font-semibold text-surface-900 text-sm">
+                        {procedure.procedureName}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-surface-400">
+                      <span>Qtd: {procedure.quantity}</span>
+                      <span>{formatCurrency(procedure.totalValue)}</span>
+                      {procedure.completedAt && (
+                        <span>
+                          {format(parseISO(procedure.completedAt), "dd/MM/yyyy", { locale: ptBR })}
+                        </span>
+                      )}
+                    </div>
+                    {procedure.notes && (
+                      <p className="text-xs text-surface-500 mt-1 italic">{procedure.notes}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-success-light text-success-dark">
+                    Concluído
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

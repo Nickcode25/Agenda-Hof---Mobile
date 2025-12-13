@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Plus, User, Upload } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -6,10 +6,9 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { Loading } from '@/components/ui/Loading'
+import { AlphabetIndex } from '@/components/ui/AlphabetIndex'
+import { useStatusBar } from '@/hooks/useStatusBar'
 import type { Patient } from '@/types/database'
-
-// Alphabet for the sidebar index
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('')
 
 // Virtual list item types
 type VirtualListItem =
@@ -19,6 +18,9 @@ type VirtualListItem =
 export function PatientsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -127,21 +129,21 @@ export function PatientsPage() {
   })
 
   // Scroll to letter for alphabet sidebar
-  const scrollToLetter = (letter: string) => {
+  const scrollToLetter = useCallback((letter: string) => {
     const index = virtualItems.findIndex(
       (item) => item.type === 'header' && item.letter === letter
     )
     if (index !== -1) {
       rowVirtualizer.scrollToIndex(index, { align: 'start' })
     }
-  }
+  }, [virtualItems, rowVirtualizer])
 
   return (
-    <div className="min-h-screen bg-[#f2f2f7] pb-20 flex flex-col">
+    <div className="h-screen bg-[#f2f2f7] flex flex-col overflow-hidden">
       {/* Safe area top com cor de fundo */}
-      <div className="h-safe-top bg-[#f2f2f7]" />
+      <div className="h-safe-top bg-[#f2f2f7] flex-shrink-0" />
       {/* iOS Large Title Header */}
-      <div className="bg-[#f2f2f7]">
+      <div className="bg-[#f2f2f7] flex-shrink-0">
         <div className="flex items-center justify-between px-4 pt-2 pb-1">
           <h1 className="text-[34px] font-bold text-surface-900 tracking-tight">
             Pacientes
@@ -166,7 +168,7 @@ export function PatientsPage() {
       </div>
 
       {/* iOS Search Bar */}
-      <div className="bg-[#f2f2f7] px-4 py-2">
+      <div className="bg-[#f2f2f7] px-4 py-2 flex-shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-[#8e8e93]" />
           <input
@@ -176,19 +178,20 @@ export function PatientsPage() {
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
             placeholder="Buscar"
-            className={`w-full bg-[#e5e5ea] rounded-[10px] py-[7px] pl-8 pr-4 text-[17px] text-surface-900 placeholder:text-[#8e8e93] transition-all ${
-              isSearchFocused ? 'bg-white ring-1 ring-[#c7c7cc]' : ''
+            className={`w-full bg-[#e5e5ea] border border-transparent rounded-[10px] py-[7px] pl-8 pr-4 text-[17px] text-surface-900 placeholder:text-[#8e8e93] transition-all ${
+              isSearchFocused ? 'bg-white border-primary-500 ring-1 ring-primary-500' : ''
             }`}
           />
         </div>
       </div>
 
       {/* Main Content with Alphabet Sidebar */}
-      <div className="flex-1 flex relative overflow-hidden bg-[#f2f2f7]">
+      <div className="flex-1 flex relative bg-[#f2f2f7] overflow-hidden" style={{ minHeight: 0 }}>
         {/* Patient List */}
         <div
           ref={listRef}
-          className="flex-1 overflow-y-auto"
+          className="absolute inset-0 overflow-y-auto overscroll-y-contain pb-20"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {loading ? (
             <div className="pt-20">
@@ -280,27 +283,10 @@ export function PatientsPage() {
 
         {/* Alphabet Sidebar - iOS Style */}
         {!loading && filteredPatients.length > 0 && !search && (
-          <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-center py-2 z-20 pr-0.5">
-            <div className="flex flex-col items-center">
-              {ALPHABET.map((letter) => {
-                const isAvailable = availableLetters.has(letter)
-                return (
-                  <button
-                    key={letter}
-                    onClick={() => isAvailable && scrollToLetter(letter)}
-                    className={`w-[18px] h-[13px] flex items-center justify-center text-[11px] font-semibold transition-opacity ${
-                      isAvailable
-                        ? 'text-primary-500 active:scale-150'
-                        : 'text-[#c7c7cc]'
-                    }`}
-                    disabled={!isAvailable}
-                  >
-                    {letter}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+          <AlphabetIndex
+            availableLetters={availableLetters}
+            onLetterSelect={scrollToLetter}
+          />
         )}
       </div>
     </div>

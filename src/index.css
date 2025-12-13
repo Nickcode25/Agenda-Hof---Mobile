@@ -60,19 +60,43 @@
            active:opacity-60 transition-opacity;
   }
 
-  /* iOS-style input */
+  /* Input com bordas visíveis */
   .input {
-    @apply w-full bg-white border-0 rounded-xl py-3.5 px-4
-           text-surface-900 placeholder:text-surface-400
-           focus:ring-0 transition-all;
+    @apply w-full bg-gray-50 border border-gray-300 rounded-lg py-3 px-4
+           text-surface-900 placeholder:text-gray-400
+           focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none
+           transition-all;
     font-size: 17px;
     line-height: 22px;
   }
 
-  /* iOS grouped input style */
+  /* Input desabilitado */
+  .input:disabled {
+    @apply bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200;
+  }
+
+  /* Select com bordas visíveis */
+  select.input {
+    @apply appearance-none bg-gray-50 border border-gray-300 rounded-lg py-3 px-4 pr-10
+           text-surface-900
+           focus:border-primary-500 focus:ring-1 focus:ring-primary-500 focus:outline-none
+           transition-all cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px 16px;
+  }
+
+  /* Textarea com bordas visíveis */
+  textarea.input {
+    @apply resize-none;
+    min-height: 100px;
+  }
+
+  /* iOS grouped input style (para inputs dentro de cards) */
   .input-grouped {
     @apply w-full bg-transparent border-0 py-3 px-0
-           text-surface-900 placeholder:text-surface-400
+           text-surface-900 placeholder:text-gray-400
            focus:ring-0;
     font-size: 17px;
     line-height: 22px;

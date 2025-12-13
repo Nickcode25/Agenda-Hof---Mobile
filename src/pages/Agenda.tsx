@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loading } from '@/components/ui/Loading'
+import { useStatusBar } from '@/hooks/useStatusBar'
 import type { Appointment, RecurringBlock } from '@/types/database'
 
 type ViewMode = 'day' | 'week'
@@ -65,6 +66,10 @@ const SLOT_HEIGHT = PIXELS_PER_15MIN * 2 // 80px por slot de 30 min
 export function AgendaPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
+
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('day')
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -435,35 +440,13 @@ export function AgendaPage() {
 
       {/* Week Days Header - Compacto com swipe */}
       {viewMode === 'day' && (
-        <div className="bg-white border-b border-surface-100">
-          <div className="flex">
-            <div className="w-11 flex-shrink-0" />
-            {weekDays.map((day) => (
-              <button
-                key={day.toISOString()}
-                onClick={() => setSelectedDate(day)}
-                className={`flex-1 py-1.5 text-center transition-colors ${
-                  isSameDay(day, selectedDate) ? 'bg-primary-50' : ''
-                }`}
-              >
-                <div className="text-[9px] uppercase font-semibold text-surface-400 mb-0.5">
-                  {format(day, 'EEEEE', { locale: ptBR })}
-                </div>
-                <div
-                  className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
-                    isToday(day)
-                      ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40'
-                      : isSameDay(day, selectedDate)
-                      ? 'bg-primary-100 text-primary-600'
-                      : 'text-surface-600'
-                  }`}
-                >
-                  {format(day, 'd')}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        <WeekCalendarHeader
+          weekDays={weekDays}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onSwipeLeft={() => setSelectedDate(addDays(selectedDate, 1))}
+          onSwipeRight={() => setSelectedDate(subDays(selectedDate, 1))}
+        />
       )}
 
       {/* Navigation for week/month */}
@@ -602,6 +585,92 @@ export function AgendaPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Week Calendar Header com Swipe
+function WeekCalendarHeader({
+  weekDays,
+  selectedDate,
+  onSelectDate,
+  onSwipeLeft,
+  onSwipeRight,
+}: {
+  weekDays: Date[]
+  selectedDate: Date
+  onSelectDate: (date: Date) => void
+  onSwipeLeft: () => void
+  onSwipeRight: () => void
+}) {
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return
+
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+    const deltaX = touchEndX - touchStartX.current
+    const deltaY = touchEndY - touchStartY.current
+
+    // Verificar se o movimento é mais horizontal que vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      const minSwipeDistance = 50 // Mínimo de 50px para considerar swipe
+
+      if (deltaX < -minSwipeDistance) {
+        // Swipe para esquerda - avançar semana
+        onSwipeLeft()
+      } else if (deltaX > minSwipeDistance) {
+        // Swipe para direita - voltar semana
+        onSwipeRight()
+      }
+    }
+
+    touchStartX.current = null
+    touchStartY.current = null
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="bg-white border-b border-surface-100"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="flex">
+        <div className="w-11 flex-shrink-0" />
+        {weekDays.map((day) => (
+          <button
+            key={day.toISOString()}
+            onClick={() => onSelectDate(day)}
+            className={`flex-1 py-1.5 text-center transition-colors ${
+              isSameDay(day, selectedDate) ? 'bg-primary-50' : ''
+            }`}
+          >
+            <div className="text-[9px] uppercase font-semibold text-surface-400 mb-0.5">
+              {format(day, 'EEEEE', { locale: ptBR })}
+            </div>
+            <div
+              className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+                isToday(day)
+                  ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40'
+                  : isSameDay(day, selectedDate)
+                  ? 'bg-primary-100 text-primary-600'
+                  : 'text-surface-600'
+              }`}
+            >
+              {format(day, 'd')}
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

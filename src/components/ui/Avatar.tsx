@@ -1,3 +1,5 @@
+import { User } from 'lucide-react'
+
 interface AvatarProps {
   name: string
   src?: string
@@ -5,17 +7,15 @@ interface AvatarProps {
 }
 
 const sizeClasses = {
-  sm: 'w-8 h-8 text-xs',
-  md: 'w-10 h-10 text-sm',
-  lg: 'w-14 h-14 text-base',
+  sm: 'w-8 h-8',
+  md: 'w-10 h-10',
+  lg: 'w-14 h-14',
 }
 
-function getInitials(name: string) {
-  const words = name.trim().split(' ')
-  if (words.length === 1) {
-    return words[0].substring(0, 2).toUpperCase()
-  }
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
+const iconSizes = {
+  sm: 'w-4 h-4',
+  md: 'w-5 h-5',
+  lg: 'w-7 h-7',
 }
 
 function getColorFromName(name: string) {
@@ -52,9 +52,9 @@ export function Avatar({ name, src, size = 'md' }: AvatarProps) {
 
   return (
     <div
-      className={`${sizeClasses[size]} ${getColorFromName(name)} rounded-full flex items-center justify-center font-medium`}
+      className={`${sizeClasses[size]} ${getColorFromName(name)} rounded-full flex items-center justify-center`}
     >
-      {getInitials(name)}
+      <User className={iconSizes[size]} strokeWidth={2} />
     </div>
   )
 }

@@ -1,8 +1,7 @@
+import { useState } from 'react'
 import { Header } from '@/components/layout/Header'
 import { useSubscription } from '@/contexts/SubscriptionContext'
-import { Check, X, Crown, ExternalLink, Loader2, Clock } from 'lucide-react'
-
-const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
+import { Check, X, Crown, Loader2, Clock, RefreshCw, Star, Zap } from 'lucide-react'
 
 interface PlanFeature {
   name: string
@@ -16,14 +15,16 @@ interface Plan {
   price: number
   features: PlanFeature[]
   popular?: boolean
+  icon: 'basic' | 'pro' | 'premium'
 }
 
 const plans: Plan[] = [
   {
     id: 'basico',
-    name: 'Plano Básico',
+    name: 'Básico',
     description: 'Para profissionais em início de atividade.',
     price: 49.90,
+    icon: 'basic',
     features: [
       { name: 'Agendamentos limitados', included: true },
       { name: 'Agenda inteligente', included: true },
@@ -36,9 +37,10 @@ const plans: Plan[] = [
   },
   {
     id: 'pro',
-    name: 'Plano Pro',
+    name: 'Profissional',
     description: 'Para profissionais em crescimento.',
     price: 79.90,
+    icon: 'pro',
     features: [
       { name: 'Agendamentos ilimitados', included: true },
       { name: 'Agenda inteligente', included: true },
@@ -51,10 +53,11 @@ const plans: Plan[] = [
   },
   {
     id: 'premium',
-    name: 'Plano Premium',
+    name: 'Premium',
     description: 'Para profissionais consolidados.',
     price: 99.90,
     popular: true,
+    icon: 'premium',
     features: [
       { name: 'Agendamentos ilimitados', included: true },
       { name: 'Agenda inteligente', included: true },
@@ -67,8 +70,15 @@ const plans: Plan[] = [
   },
 ]
 
+const planIcons = {
+  basic: Star,
+  pro: Zap,
+  premium: Crown
+}
+
 export function PlansPage() {
-  const { subscription, isActive, planName, loading, isOnTrial, trialDaysLeft, trialExpired } = useSubscription()
+  const { subscription, isActive, planName, loading, isOnTrial, trialDaysLeft, trialExpired, refetch } = useSubscription()
+  const [refreshing, setRefreshing] = useState(false)
 
   const getCurrentPlanId = (): string | null => {
     if (!subscription || !isActive) return null
@@ -80,9 +90,16 @@ export function PlansPage() {
 
   const currentPlanId = getCurrentPlanId()
 
-  const handleOpenWebsite = () => {
-    window.open(`${SITE_URL}/login`, '_blank')
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setRefreshing(false)
+    }
   }
+
+  const isLoading = loading || refreshing
 
   if (loading) {
     return (
@@ -101,7 +118,7 @@ export function PlansPage() {
 
       <div className="px-4 py-6">
         <h2 className="text-2xl font-bold text-center text-surface-900 mb-2">
-          Nossos Planos
+          Planos disponíveis
         </h2>
         <p className="text-center text-surface-500 text-sm mb-6">
           Conheça os planos disponíveis para sua clínica
@@ -116,9 +133,6 @@ export function PlansPage() {
                 Período de teste - {trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}
               </span>
             </div>
-            <p className="text-sm text-primary-600 mt-1">
-              Acesse nosso site para assinar um plano
-            </p>
           </div>
         )}
 
@@ -141,9 +155,6 @@ export function PlansPage() {
                 Seu período de teste expirou
               </span>
             </div>
-            <p className="text-sm text-red-600 mt-1">
-              Acesse nosso site para assinar um plano
-            </p>
           </div>
         )}
 
@@ -155,9 +166,6 @@ export function PlansPage() {
                 Sua assinatura está {subscription.status === 'cancelled' ? 'cancelada' : 'suspensa'}
               </span>
             </div>
-            <p className="text-sm text-red-600 mt-1">
-              Acesse nosso site para regularizar sua assinatura
-            </p>
           </div>
         )}
 
@@ -165,13 +173,14 @@ export function PlansPage() {
         <div className="space-y-4">
           {plans.map((plan) => {
             const isCurrent = currentPlanId === plan.id
+            const Icon = planIcons[plan.icon]
 
             return (
               <div
                 key={plan.id}
                 className={`card relative overflow-hidden ${
                   plan.popular ? 'border-2 border-primary-500' : ''
-                } ${isCurrent ? 'ring-2 ring-success' : ''}`}
+                } ${isCurrent ? 'ring-2 ring-green-500' : ''}`}
               >
                 {/* Badge Popular */}
                 {plan.popular && (
@@ -195,9 +204,9 @@ export function PlansPage() {
 
                 {/* Ícone */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
-                  isCurrent ? 'bg-success-light' : plan.popular ? 'bg-primary-100' : 'bg-surface-100'
+                  isCurrent ? 'bg-green-100' : plan.popular ? 'bg-primary-100' : 'bg-surface-100'
                 } ${isCurrent || plan.popular ? 'mt-6' : ''}`}>
-                  <Crown className={`w-6 h-6 ${isCurrent ? 'text-success' : plan.popular ? 'text-primary-500' : 'text-surface-500'}`} />
+                  <Icon className={`w-6 h-6 ${isCurrent ? 'text-green-500' : plan.popular ? 'text-primary-500' : 'text-surface-500'}`} />
                 </div>
 
                 {/* Nome e descrição */}
@@ -236,18 +245,29 @@ export function PlansPage() {
           })}
         </div>
 
-        {/* Botão para acessar o site */}
-        <div className="mt-6">
-          <button
-            onClick={handleOpenWebsite}
-            className="w-full py-3 rounded-xl bg-primary-500 text-white font-medium flex items-center justify-center gap-2 active:bg-primary-600 transition-colors"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Assinar pelo site
-          </button>
-          <p className="text-center text-surface-400 text-xs mt-3">
-            A assinatura é realizada através do nosso site oficial
+        {/* Informação e botão de atualizar */}
+        <div className="mt-6 space-y-4">
+          <p className="text-center text-surface-500 text-sm">
+            Gerencie sua assinatura em agendahof.com.br
           </p>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="w-full py-3 rounded-xl bg-primary-500 text-white font-medium flex items-center justify-center gap-2 active:bg-primary-600 transition-colors disabled:opacity-70"
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                Verificando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-5 h-5" />
+                Verificar minha assinatura
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

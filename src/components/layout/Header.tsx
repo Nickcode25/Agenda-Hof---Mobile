@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 interface HeaderProps {
   title: string
@@ -18,6 +19,11 @@ export function Header({
   variant = 'primary',
 }: HeaderProps) {
   const navigate = useNavigate()
+
+  // Controla a status bar baseado no variant do header
+  // primary (laranja) = dark (icones brancos)
+  // default (claro) = light (icones pretos)
+  useStatusBar(variant === 'primary' ? 'dark' : 'light')
 
   // iOS-style header with blur for default variant
   if (variant === 'default') {

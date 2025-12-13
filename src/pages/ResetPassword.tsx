@@ -2,9 +2,14 @@ import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)

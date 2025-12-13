@@ -1,39 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
 import { useSubscription } from '@/contexts/SubscriptionContext'
-import { supabase } from '@/lib/supabase'
 import { Header } from '@/components/layout/Header'
-import { Avatar } from '@/components/ui/Avatar'
 import { Loading } from '@/components/ui/Loading'
 import {
-  ChevronLeft,
   Crown,
   Gift,
   Clock,
   Check,
   CreditCard,
-  User,
-  AlertTriangle,
   Mail,
-  Sparkles,
-  Zap,
-  Star
+  RefreshCw
 } from 'lucide-react'
-import { format, parseISO, differenceInDays, differenceInMonths } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-
-interface PaymentHistory {
-  id: string
-  amount: number
-  status: string
-  payment_method: string
-  card_brand: string | null
-  card_last_digits: string | null
-  description: string | null
-  created_at: string
-}
 
 // Features por tipo de plano
 const planFeatures = {
@@ -74,7 +55,6 @@ const planFeatures = {
 
 export function MySubscriptionPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const {
     subscription,
     loading: subLoading,
@@ -84,38 +64,10 @@ export function MySubscriptionPage() {
     planName,
     isCourtesy,
     hasPaidSubscription,
-    cancelSubscription
+    refetch
   } = useSubscription()
 
-  const [payments, setPayments] = useState<PaymentHistory[]>([])
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
-  const [cancelSuccess, setCancelSuccess] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
-
-  // Buscar histórico de pagamentos para estatísticas
-  useEffect(() => {
-    if (user && hasPaidSubscription) {
-      fetchPaymentHistory()
-    }
-  }, [user, hasPaidSubscription])
-
-  const fetchPaymentHistory = async () => {
-    if (!user) return
-    try {
-      const { data } = await supabase
-        .from('payment_history')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (data) setPayments(data)
-    } catch (err) {
-      console.error('Erro ao buscar pagamentos:', err)
-    }
-  }
+  const [refreshing, setRefreshing] = useState(false)
 
   // Determinar tipo de plano para features e cor
   const getPlanType = (): 'basic' | 'pro' | 'premium' | 'courtesy' | 'trial' => {
@@ -149,24 +101,6 @@ export function MySubscriptionPage() {
   // Ícone baseado no tipo
   const PlanIcon = planType === 'courtesy' ? Gift : planType === 'trial' ? Clock : Crown
 
-  // Calcular estatísticas
-  const calculateStats = () => {
-    if (!subscription?.created_at) return { months: 0, days: 0, totalInvested: 0 }
-
-    const startDate = parseISO(subscription.created_at)
-    const now = new Date()
-    const months = differenceInMonths(now, startDate)
-    const days = differenceInDays(now, startDate) % 30
-
-    const totalInvested = payments
-      .filter(p => p.status === 'approved')
-      .reduce((sum, p) => sum + p.amount, 0)
-
-    return { months, days, totalInvested }
-  }
-
-  const stats = calculateStats()
-
   // Formatar data
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
@@ -177,53 +111,21 @@ export function MySubscriptionPage() {
     }
   }
 
-  // Status badge
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      approved: 'bg-green-100 text-green-700',
-      pending: 'bg-yellow-100 text-yellow-700',
-      rejected: 'bg-red-100 text-red-700',
-      refunded: 'bg-orange-100 text-orange-700',
-      cancelled: 'bg-gray-100 text-gray-600'
-    }
-    const labels: Record<string, string> = {
-      approved: 'Aprovado',
-      pending: 'Pendente',
-      rejected: 'Rejeitado',
-      refunded: 'Reembolsado',
-      cancelled: 'Cancelado'
-    }
-    return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
-        {labels[status] || status}
-      </span>
-    )
-  }
-
-  const handleCancelSubscription = async () => {
-    if (!subscription?.id) return
-    setCancelling(true)
-    setCancelError(null)
-
+  const handleRefresh = async () => {
+    setRefreshing(true)
     try {
-      const result = await cancelSubscription()
-
-      if (result.success) {
-        setCancelSuccess(true)
-        setShowCancelModal(false)
-      } else {
-        setCancelError(result.error || 'Erro ao cancelar assinatura')
-      }
-    } catch (err) {
-      console.error('Erro ao cancelar:', err)
-      setCancelError('Erro inesperado. Tente novamente.')
+      await refetch()
     } finally {
-      setCancelling(false)
+      setRefreshing(false)
     }
   }
 
-  const handleSelectPlan = () => {
-    navigate('/select-plan')
+  const isLoading = subLoading || refreshing
+
+  // Se não tem assinatura ativa, redirecionar para bloqueio
+  if (!subLoading && !isActive) {
+    navigate('/subscription-blocked', { replace: true })
+    return null
   }
 
   if (subLoading) {
@@ -312,18 +214,23 @@ export function MySubscriptionPage() {
           )}
         </section>
 
-        {/* Card de Gestão de Pagamentos (apenas para pagantes) */}
+        {/* Card de Método de Pagamento (apenas para pagantes) */}
         {hasPaidSubscription && (
           <section className="card">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="w-5 h-5 text-primary-500" />
-              <h3 className="font-semibold text-surface-900">Pagamentos</h3>
+              <h3 className="font-semibold text-surface-900">Método de Pagamento</h3>
             </div>
 
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-surface-500">Status</span>
+                <span className="text-sm text-surface-700">Ativo</span>
+              </div>
+
               {subscription?.next_billing_date && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-surface-500">Próximo pagamento</span>
+                  <span className="text-sm text-surface-500">Próxima cobrança</span>
                   <div className="text-right">
                     <p className="font-medium text-surface-900">
                       R$ {subscription.plan_amount?.toFixed(2)}
@@ -334,49 +241,6 @@ export function MySubscriptionPage() {
                   </div>
                 </div>
               )}
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-500">Método</span>
-                <span className="text-sm text-surface-700">Cartão de Crédito</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-surface-500">Status</span>
-                {getStatusBadge('approved')}
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate('/payment-history')}
-              className="mt-4 w-full py-2.5 border border-surface-200 rounded-xl text-surface-700 font-medium text-sm active:bg-surface-50 flex items-center justify-center gap-2"
-            >
-              Ver Histórico de Faturas
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-            </button>
-          </section>
-        )}
-
-        {/* Card de Estatísticas (apenas para pagantes) */}
-        {hasPaidSubscription && stats.months > 0 && (
-          <section className="card">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-primary-500" />
-              <h3 className="font-semibold text-surface-900">Estatísticas</h3>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-surface-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-primary-500">
-                  {stats.months > 0 ? `${stats.months}m` : ''} {stats.days}d
-                </p>
-                <p className="text-xs text-surface-500 mt-1">Tempo como assinante</p>
-              </div>
-              <div className="bg-surface-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-green-500">
-                  R$ {stats.totalInvested.toFixed(2)}
-                </p>
-                <p className="text-xs text-surface-500 mt-1">Total investido</p>
-              </div>
             </div>
           </section>
         )}
@@ -394,84 +258,43 @@ export function MySubscriptionPage() {
                 {isCourtesy ? <Gift className="w-6 h-6 text-surface-400" /> : <Clock className="w-6 h-6 text-surface-400" />}
               </div>
               <p className="text-surface-600 font-medium">
-                {isCourtesy ? 'Você possui acesso cortesia' : 'Nenhum pagamento registrado'}
+                {isCourtesy ? 'Você possui acesso cortesia' : 'Período de teste ativo'}
               </p>
               <p className="text-sm text-surface-400 mt-1">
                 {isCourtesy
                   ? 'Aproveite todos os recursos sem cobrança'
-                  : 'Assine um plano para ter acesso ilimitado'}
+                  : `${trialDaysLeft} ${trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}`}
               </p>
             </div>
           </section>
         )}
 
-        {/* Card de Ações */}
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-primary-500" />
-            <h3 className="font-semibold text-surface-900">Ações</h3>
-          </div>
-
-          <div className="space-y-3">
-            {/* Usuário pagante - gerenciar assinatura */}
-            {hasPaidSubscription && (
-              <>
-                <button
-                  onClick={handleSelectPlan}
-                  className="w-full py-3 border border-surface-200 text-surface-700 rounded-xl font-medium active:bg-surface-50"
-                >
-                  Alterar Plano
-                </button>
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="w-full py-2.5 text-red-500 font-medium text-sm"
-                >
-                  Cancelar Assinatura
-                </button>
-                <p className="text-xs text-surface-400 text-center">
-                  Em caso de cancelamento, você terá acesso até o fim do período atual
-                </p>
-              </>
-            )}
-
-            {/* Usuário cortesia - sem ações de upgrade, apenas visualizar planos */}
-            {!hasPaidSubscription && isCourtesy && (
-              <button
-                onClick={handleSelectPlan}
-                className="w-full py-3 border border-surface-200 text-surface-700 rounded-xl font-medium active:bg-surface-50 flex items-center justify-center gap-2"
-              >
-                Ver Planos Disponíveis
-              </button>
-            )}
-
-            {/* Usuário em trial (sem assinatura paga) - ação principal: assinar */}
-            {!hasPaidSubscription && !isCourtesy && isOnTrial && (
-              <>
-                <button
-                  onClick={handleSelectPlan}
-                  className="w-full btn-primary flex items-center justify-center gap-2"
-                >
-                  <Star className="w-5 h-5" />
-                  Assinar Agora
-                </button>
-                <p className="text-xs text-surface-400 text-center">
-                  Seu período de teste termina em {trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}
-                </p>
-              </>
-            )}
-
-            {/* Usuário inativo (sem trial, sem cortesia, sem assinatura) */}
-            {!isActive && !isOnTrial && !isCourtesy && (
-              <button
-                onClick={handleSelectPlan}
-                className="w-full btn-primary flex items-center justify-center gap-2"
-              >
-                <Star className="w-5 h-5" />
-                Escolher um Plano
-              </button>
-            )}
-          </div>
+        {/* Informação sobre gerenciamento pelo site */}
+        <section className="card bg-surface-100 border-0">
+          <p className="text-sm text-surface-600 text-center">
+            Para alterar ou cancelar sua assinatura, acesse{' '}
+            <span className="font-medium text-surface-700">agendahof.com.br</span>
+          </p>
         </section>
+
+        {/* Botão de atualizar status */}
+        <button
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="w-full py-3 rounded-xl bg-primary-500 text-white font-medium flex items-center justify-center gap-2 active:bg-primary-600 transition-colors disabled:opacity-70"
+        >
+          {isLoading ? (
+            <>
+              <RefreshCw className="w-5 h-5 animate-spin" />
+              Atualizando...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-5 h-5" />
+              Atualizar status
+            </>
+          )}
+        </button>
 
         {/* Card de Ajuda */}
         <section className="card">
@@ -490,95 +313,6 @@ export function MySubscriptionPage() {
           </a>
         </section>
       </div>
-
-      {/* Modal de Cancelamento */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => !cancelling && setShowCancelModal(false)}
-          />
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-7 h-7 text-red-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">
-                Cancelar Assinatura?
-              </h3>
-              <p className="text-sm text-surface-500">
-                Tem certeza que deseja cancelar? Você terá acesso até o final do período atual.
-              </p>
-              {cancelError && (
-                <p className="text-sm text-red-500 mt-3 bg-red-50 p-2 rounded-lg">
-                  {cancelError}
-                </p>
-              )}
-            </div>
-            <div className="flex border-t border-surface-200">
-              <button
-                onClick={() => {
-                  setShowCancelModal(false)
-                  setCancelError(null)
-                }}
-                disabled={cancelling}
-                className="flex-1 py-3.5 text-surface-600 font-medium border-r border-surface-200 active:bg-surface-50 disabled:opacity-50"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={handleCancelSubscription}
-                disabled={cancelling}
-                className="flex-1 py-3.5 text-red-500 font-semibold active:bg-red-50 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {cancelling ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                    Cancelando...
-                  </>
-                ) : (
-                  'Confirmar'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Sucesso */}
-      {cancelSuccess && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setCancelSuccess(false)}
-          />
-          <div className="relative bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="w-7 h-7 text-green-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-surface-900 mb-2">
-                Assinatura Cancelada
-              </h3>
-              <p className="text-sm text-surface-500">
-                Sua assinatura foi cancelada com sucesso. Você ainda terá acesso até o final do período atual.
-              </p>
-            </div>
-            <div className="border-t border-surface-200">
-              <button
-                onClick={() => {
-                  setCancelSuccess(false)
-                  navigate('/settings')
-                }}
-                className="w-full py-3.5 text-primary-500 font-semibold active:bg-surface-50"
-              >
-                Entendi
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }

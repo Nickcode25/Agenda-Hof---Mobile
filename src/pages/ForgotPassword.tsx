@@ -2,9 +2,14 @@ import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Mail, Loader2, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
+
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

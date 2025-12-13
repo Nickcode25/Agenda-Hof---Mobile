@@ -1,15 +1,19 @@
 import { useState } from 'react'
 import { useSubscription } from '@/contexts/SubscriptionContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { AlertTriangle, Clock, ExternalLink, LogOut } from 'lucide-react'
-
-const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://www.agendahof.com'
+import { Lock, LogOut, RefreshCw } from 'lucide-react'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 export function SubscriptionBlockedPage() {
-  const { subscription, trialExpired } = useSubscription()
+  const { refetch, loading: subscriptionLoading } = useSubscription()
   const { signOut } = useAuth()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
+
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const handleSignOut = async () => {
     setLoggingOut(true)
@@ -18,82 +22,54 @@ export function SubscriptionBlockedPage() {
     setShowLogoutModal(false)
   }
 
-  const handleOpenWebsite = () => {
-    window.open(`${SITE_URL}/login`, '_blank')
-  }
-
-  const getStatusMessage = () => {
-    // Primeiro verifica se o trial expirou (sem assinatura ativa)
-    if (trialExpired && !subscription) {
-      return {
-        title: 'Período de teste expirou',
-        message: 'Seu período de teste de 7 dias chegou ao fim. Escolha um plano para continuar usando o AgendaHOF.',
-        icon: 'clock',
-      }
-    }
-
-    if (!subscription) {
-      return {
-        title: 'Sem assinatura ativa',
-        message: 'Você ainda não possui uma assinatura. Escolha um plano para começar a usar o AgendaHOF.',
-        icon: 'alert',
-      }
-    }
-
-    switch (subscription.status) {
-      case 'cancelled':
-        return {
-          title: 'Assinatura cancelada',
-          message: 'Sua assinatura foi cancelada. Assine novamente para continuar usando o AgendaHOF.',
-          icon: 'alert',
-        }
-      case 'expired':
-        return {
-          title: 'Assinatura expirada',
-          message: 'Sua assinatura expirou. Renove seu plano para continuar usando o AgendaHOF.',
-          icon: 'alert',
-        }
-      default:
-        return {
-          title: 'Assinatura inativa',
-          message: 'Sua assinatura não está ativa. Escolha um plano para continuar usando o AgendaHOF.',
-          icon: 'alert',
-        }
+  const handleRefreshSubscription = async () => {
+    setRefreshing(true)
+    try {
+      await refetch()
+    } finally {
+      setRefreshing(false)
     }
   }
 
-  const { title, message, icon } = getStatusMessage()
+  const isLoading = refreshing || subscriptionLoading
 
   return (
     <div className="min-h-screen bg-surface-50 flex flex-col">
       <div className="h-safe-top bg-surface-50" />
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {/* Ícone */}
-        <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${
-          icon === 'clock' ? 'bg-primary-100' : 'bg-error-light'
-        }`}>
-          {icon === 'clock' ? (
-            <Clock className="w-12 h-12 text-primary-500" />
-          ) : (
-            <AlertTriangle className="w-12 h-12 text-error" />
-          )}
+        <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center mb-6">
+          <Lock className="w-12 h-12 text-primary-500" />
         </div>
 
         {/* Título e mensagem */}
         <h1 className="text-2xl font-bold text-surface-900 text-center mb-3">
-          {title}
+          Assinatura necessária
         </h1>
-        <p className="text-surface-500 text-center mb-8 max-w-xs">
-          {message}
+        <p className="text-surface-500 text-center mb-4 max-w-xs">
+          Para acessar todas as funcionalidades do Agenda HOF, você precisa de uma assinatura ativa.
+        </p>
+        <p className="text-surface-400 text-center text-sm mb-8 max-w-xs">
+          Acesse agendahof.com.br pelo navegador para gerenciar sua assinatura.
         </p>
 
-        {/* Botão de ver planos */}
+        {/* Botão de verificar assinatura */}
         <button
-          onClick={handleOpenWebsite}
-          className="btn-primary w-full max-w-xs flex items-center justify-center gap-2"
+          onClick={handleRefreshSubscription}
+          disabled={isLoading}
+          className="btn-primary w-full max-w-xs flex items-center justify-center gap-2 disabled:opacity-70"
         >
-          <ExternalLink className="w-5 h-5" />
-          Ver planos no site
+          {isLoading ? (
+            <>
+              <RefreshCw className="w-5 h-5 animate-spin" />
+              Verificando...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-5 h-5" />
+              Já tenho assinatura
+            </>
+          )}
         </button>
 
         {/* Botão de sair */}
@@ -102,7 +78,7 @@ export function SubscriptionBlockedPage() {
           className="mt-4 text-surface-500 flex items-center gap-2 py-2"
         >
           <LogOut className="w-4 h-4" />
-          <span className="text-sm">Sair da conta</span>
+          <span className="text-sm">Sair</span>
         </button>
       </div>
 

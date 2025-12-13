@@ -29,6 +29,16 @@ export async function requestContactsPermission(): Promise<boolean> {
   }
 }
 
+// Timeout helper para evitar loop infinito
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout ao carregar contatos')), timeoutMs)
+    )
+  ])
+}
+
 // Busca todos os contatos do dispositivo
 export async function getDeviceContacts(): Promise<ContactInfo[]> {
   if (!isNativePlatform()) {
@@ -37,13 +47,22 @@ export async function getDeviceContacts(): Promise<ContactInfo[]> {
   }
 
   try {
-    const result: GetContactsResult = await Contacts.getContacts({
-      projection: {
-        name: true,
-        phones: true,
-        emails: true,
-      },
-    })
+    // Adiciona timeout de 5 segundos para evitar loop infinito
+    const result: GetContactsResult = await withTimeout(
+      Contacts.getContacts({
+        projection: {
+          name: true,
+          phones: true,
+          emails: true,
+        },
+      }),
+      5000
+    )
+
+    if (!result || !result.contacts) {
+      console.warn('No contacts returned from device')
+      return []
+    }
 
     const contacts: ContactInfo[] = result.contacts
       .filter((contact: ContactPayload) => contact.name?.display) // Apenas contatos com nome

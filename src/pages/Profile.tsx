@@ -312,16 +312,16 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-[13px] font-normal text-[#8e8e93] mb-1">
+              <label className="block text-sm font-medium text-surface-600 mb-1">
                 E-mail
               </label>
               <input
                 type="email"
                 value={user?.email || ''}
                 disabled
-                className="input bg-[#f2f2f7] text-[#8e8e93] cursor-not-allowed"
+                className="input"
               />
-              <p className="text-[11px] text-[#8e8e93] mt-1">
+              <p className="text-[11px] text-gray-400 mt-1">
                 O e-mail não pode ser alterado
               </p>
             </div>

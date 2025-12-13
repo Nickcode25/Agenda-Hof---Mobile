@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from './AuthContext'
@@ -83,7 +83,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [isCourtesyUser, setIsCourtesyUser] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const fetchSubscription = async () => {
+  // Ref para evitar múltiplas chamadas simultâneas
+  const isFetchingRef = useRef(false)
+  // Ref para guardar timestamp da última verificação
+  const lastFetchRef = useRef<number>(0)
+  // Tempo mínimo entre verificações automáticas (30 segundos)
+  const MIN_FETCH_INTERVAL = 30000
+
+  const fetchSubscription = useCallback(async (force = false) => {
     if (!user) {
       setSubscription(null)
       setIsCourtesyUser(false)
@@ -91,6 +98,19 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // Verificar se já está buscando ou se passou tempo suficiente
+    const now = Date.now()
+    if (!force) {
+      if (isFetchingRef.current) {
+        return
+      }
+      if (now - lastFetchRef.current < MIN_FETCH_INTERVAL) {
+        return
+      }
+    }
+
+    isFetchingRef.current = true
+    lastFetchRef.current = now
     setLoading(true)
 
     try {
@@ -198,14 +218,36 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       console.error('Erro ao verificar assinatura:', error)
       setSubscription(null)
       setIsCourtesyUser(false)
+    } finally {
+      isFetchingRef.current = false
     }
 
     setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchSubscription()
   }, [user])
+
+  // Fetch inicial quando o user muda
+  useEffect(() => {
+    fetchSubscription(true) // force=true para o fetch inicial
+  }, [user, fetchSubscription])
+
+  // Listener para atualizar assinatura quando o app volta do background
+  // Usa a Page Visibility API que funciona bem com WebView
+  useEffect(() => {
+    if (!user) return
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // App voltou ao primeiro plano - verificar assinatura
+        fetchSubscription(false)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [user, fetchSubscription])
 
   // Calcular dias desde a criação da conta para o trial
   const calculateTrialStatusForUser = () => {
@@ -328,7 +370,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         planType: effectivePlanType,
         isCourtesy,
         hasPaidSubscription,
-        refetch: fetchSubscription,
+        refetch: () => fetchSubscription(true), // Sempre forçar quando chamado manualmente
         cancelSubscription,
       }}
     >

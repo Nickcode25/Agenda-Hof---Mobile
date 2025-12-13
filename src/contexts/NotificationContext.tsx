@@ -35,6 +35,7 @@ interface NotificationProviderProps {
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user } = useAuth()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   const navigate = useNavigate()
 
   // Função para verificar status das notificações
@@ -43,23 +44,26 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setNotificationsEnabled(settings.enabled && settings.permission === 'granted')
   }
 
-  // Inicializa notificações SOMENTE após o login
+  // Inicializa notificações SOMENTE após o login (uma única vez)
   useEffect(() => {
+    // Evita inicialização múltipla
+    if (initialized || !user) {
+      return
+    }
+
     async function init() {
       // Verifica configurações salvas
       refreshNotificationStatus()
 
       if (!isNativePlatform()) {
+        setInitialized(true)
         return
       }
 
-      // Só solicita permissão se o usuário estiver logado
-      if (user) {
-        // Inicializa notificações locais (solicita permissão do iOS)
-        const localEnabled = await initLocalNotifications()
-        if (localEnabled) {
-          refreshNotificationStatus()
-        }
+      // Inicializa notificações locais (solicita permissão do iOS)
+      const localEnabled = await initLocalNotifications()
+      if (localEnabled) {
+        refreshNotificationStatus()
       }
 
       // Configura listener para quando notificação é clicada
@@ -67,10 +71,12 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         // Navega para a agenda quando clica na notificação
         navigate('/agenda')
       })
+
+      setInitialized(true)
     }
 
     init()
-  }, [navigate, user])
+  }, [navigate, user, initialized])
 
   // Agenda lembretes para consultas do dia quando usuário loga ou configuração muda
   useEffect(() => {

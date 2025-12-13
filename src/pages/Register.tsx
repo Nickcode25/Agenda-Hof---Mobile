@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 // Validação de email
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -123,6 +124,9 @@ const fixEmailTypo = (email: string): string => {
 
 export function RegisterPage() {
   const navigate = useNavigate()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
 
   // Form state
   const [name, setName] = useState('')

@@ -1,148 +1,177 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigation } from '@/contexts/NavigationContext'
 
 interface SwipeBackOptions {
-  threshold?: number      // Distância mínima para ativar o swipe (em pixels)
-  edgeWidth?: number      // Largura da área de borda para iniciar o swipe (em pixels)
+  threshold?: number      // Porcentagem da tela para completar o swipe (0-1)
+  edgeWidth?: number      // Largura da area de borda para iniciar o swipe (em pixels)
   disabled?: boolean      // Desabilitar o swipe
-  enableVisualFeedback?: boolean // Habilitar feedback visual durante o arrasto
 }
 
-// Páginas onde não deve ter swipe back (páginas principais da navegação)
-const NO_SWIPE_PAGES = ['/agenda', '/patients', '/settings', '/login', '/register', '/forgot-password']
+// Paginas onde nao deve ter swipe back (paginas principais da navegacao)
+const NO_SWIPE_PAGES = ['/', '/agenda', '/patients', '/settings', '/login', '/register', '/forgot-password']
 
 export function useSwipeBack(options: SwipeBackOptions = {}) {
   const {
-    threshold = 50,
+    threshold = 0.35, // 35% da largura da tela
     edgeWidth = 25,
     disabled = false,
-    enableVisualFeedback = true
   } = options
 
   const navigate = useNavigate()
   const location = useLocation()
+  const { setDirection } = useNavigation()
 
   // Refs para tracking do gesto
   const touchStartX = useRef<number>(0)
   const touchStartY = useRef<number>(0)
-  const touchCurrentX = useRef<number>(0)
   const isSwipeStartedFromEdge = useRef<boolean>(false)
   const isHorizontalSwipe = useRef<boolean | null>(null)
-  const overlayRef = useRef<HTMLDivElement | null>(null)
-  const indicatorRef = useRef<HTMLDivElement | null>(null)
+  const pageElement = useRef<HTMLElement | null>(null)
+  const overlayElement = useRef<HTMLDivElement | null>(null)
+  const screenWidth = useRef<number>(window.innerWidth)
 
-  // Verificar se existe histórico para voltar
+  // Verificar se existe historico para voltar
   const canGoBack = useCallback(() => {
-    // Em SPAs com React Router, verificamos se não estamos na primeira página
     return window.history.length > 1
   }, [])
 
-  // Criar elementos visuais de feedback
-  const createVisualElements = useCallback(() => {
-    if (!enableVisualFeedback) return
+  // Criar overlay escuro
+  const createOverlay = useCallback(() => {
+    if (overlayElement.current) return
 
-    // Overlay escuro que aparece durante o swipe
-    if (!overlayRef.current) {
-      const overlay = document.createElement('div')
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0);
-        pointer-events: none;
-        z-index: 9998;
-        transition: background 0.1s ease;
-      `
-      document.body.appendChild(overlay)
-      overlayRef.current = overlay
-    }
+    const overlay = document.createElement('div')
+    overlay.id = 'swipe-back-overlay'
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0);
+      pointer-events: none;
+      z-index: 9998;
+      will-change: background;
+    `
+    document.body.appendChild(overlay)
+    overlayElement.current = overlay
+  }, [])
 
-    // Indicador de borda esquerda
-    if (!indicatorRef.current) {
-      const indicator = document.createElement('div')
-      indicator.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 4px;
-        height: 100%;
-        background: linear-gradient(to right, rgba(249, 115, 22, 0.6), transparent);
-        opacity: 0;
-        pointer-events: none;
-        z-index: 9999;
-        transition: opacity 0.15s ease, width 0.15s ease;
-      `
-      document.body.appendChild(indicator)
-      indicatorRef.current = indicator
-    }
-  }, [enableVisualFeedback])
-
-  // Remover elementos visuais
-  const removeVisualElements = useCallback(() => {
-    if (overlayRef.current) {
-      overlayRef.current.remove()
-      overlayRef.current = null
-    }
-    if (indicatorRef.current) {
-      indicatorRef.current.remove()
-      indicatorRef.current = null
+  // Remover overlay
+  const removeOverlay = useCallback(() => {
+    if (overlayElement.current) {
+      overlayElement.current.remove()
+      overlayElement.current = null
     }
   }, [])
 
-  // Atualizar feedback visual durante o arrasto
-  const updateVisualFeedback = useCallback((progress: number) => {
-    if (!enableVisualFeedback) return
+  // Encontrar o elemento da pagina atual
+  const findPageElement = useCallback(() => {
+    // Procurar pelo container principal da pagina
+    const page = document.querySelector('[data-page-transition]') as HTMLElement
+    if (page) return page
 
-    // Progress vai de 0 a 1
-    const clampedProgress = Math.min(Math.max(progress, 0), 1)
+    // Fallback: procurar pelo primeiro elemento com min-h-screen
+    const mainContent = document.querySelector('.min-h-screen') as HTMLElement
+    if (mainContent) return mainContent
 
-    if (overlayRef.current) {
-      overlayRef.current.style.background = `rgba(0, 0, 0, ${clampedProgress * 0.15})`
-    }
-
-    if (indicatorRef.current) {
-      indicatorRef.current.style.opacity = String(clampedProgress)
-      indicatorRef.current.style.width = `${4 + clampedProgress * 8}px`
-    }
-  }, [enableVisualFeedback])
-
-  // Resetar feedback visual
-  const resetVisualFeedback = useCallback(() => {
-    if (overlayRef.current) {
-      overlayRef.current.style.background = 'rgba(0, 0, 0, 0)'
-    }
-    if (indicatorRef.current) {
-      indicatorRef.current.style.opacity = '0'
-      indicatorRef.current.style.width = '4px'
-    }
+    return null
   }, [])
+
+  // Atualizar posicao da pagina durante o swipe
+  const updatePagePosition = useCallback((translateX: number, progress: number) => {
+    if (!pageElement.current) {
+      pageElement.current = findPageElement()
+    }
+
+    if (pageElement.current) {
+      pageElement.current.style.transform = `translateX(${translateX}px)`
+      pageElement.current.style.transition = 'none'
+      pageElement.current.style.willChange = 'transform'
+    }
+
+    // Atualizar overlay - clareia conforme arrasta
+    if (overlayElement.current) {
+      const opacity = 0.3 * (1 - progress) // Comeca escuro, clareia
+      overlayElement.current.style.background = `rgba(0, 0, 0, ${opacity})`
+    }
+  }, [findPageElement])
+
+  // Resetar posicao da pagina
+  const resetPagePosition = useCallback((animate: boolean = true) => {
+    if (pageElement.current) {
+      if (animate) {
+        pageElement.current.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)'
+      }
+      pageElement.current.style.transform = 'translateX(0)'
+
+      // Limpar apos a animacao
+      setTimeout(() => {
+        if (pageElement.current) {
+          pageElement.current.style.transition = ''
+          pageElement.current.style.transform = ''
+          pageElement.current.style.willChange = ''
+        }
+      }, animate ? 300 : 0)
+    }
+
+    // Resetar overlay
+    if (overlayElement.current) {
+      overlayElement.current.style.background = 'rgba(0, 0, 0, 0)'
+    }
+
+    pageElement.current = null
+  }, [])
+
+  // Completar o swipe (animar saida da pagina)
+  const completeSwipe = useCallback(() => {
+    if (pageElement.current) {
+      pageElement.current.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)'
+      pageElement.current.style.transform = `translateX(${screenWidth.current}px)`
+    }
+
+    // Esconder overlay
+    if (overlayElement.current) {
+      overlayElement.current.style.transition = 'background 0.25s ease'
+      overlayElement.current.style.background = 'rgba(0, 0, 0, 0)'
+    }
+
+    // Definir direcao como "back" para a animacao de entrada da proxima pagina
+    setDirection('back')
+
+    // Navegar apos a animacao comecar
+    setTimeout(() => {
+      removeOverlay()
+      if (pageElement.current) {
+        pageElement.current.style.transition = ''
+        pageElement.current.style.transform = ''
+        pageElement.current.style.willChange = ''
+      }
+      pageElement.current = null
+      navigate(-1)
+    }, 200)
+  }, [navigate, removeOverlay, setDirection])
 
   useEffect(() => {
     if (disabled) return
 
-    // Verificar se está em uma página que não deve ter swipe back
+    // Verificar se esta em uma pagina que nao deve ter swipe back
     if (NO_SWIPE_PAGES.includes(location.pathname)) return
 
-    // Criar elementos visuais
-    createVisualElements()
+    screenWidth.current = window.innerWidth
 
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0]
       touchStartX.current = touch.clientX
       touchStartY.current = touch.clientY
-      touchCurrentX.current = touch.clientX
       isHorizontalSwipe.current = null
 
-      // Verificar se o swipe começou na borda esquerda da tela
+      // Verificar se o swipe comecou na borda esquerda da tela
       isSwipeStartedFromEdge.current = touch.clientX <= edgeWidth
 
       if (isSwipeStartedFromEdge.current && canGoBack()) {
-        // Mostrar indicador sutil
-        if (indicatorRef.current) {
-          indicatorRef.current.style.opacity = '0.3'
-        }
+        createOverlay()
+        pageElement.current = findPageElement()
       }
     }
 
@@ -153,58 +182,60 @@ export function useSwipeBack(options: SwipeBackOptions = {}) {
       const deltaX = touch.clientX - touchStartX.current
       const deltaY = touch.clientY - touchStartY.current
 
-      // Determinar se é um swipe horizontal na primeira movimentação significativa
+      // Determinar se e um swipe horizontal na primeira movimentacao significativa
       if (isHorizontalSwipe.current === null && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
         isHorizontalSwipe.current = Math.abs(deltaX) > Math.abs(deltaY)
+
+        // Se nao for horizontal, cancelar
+        if (!isHorizontalSwipe.current) {
+          isSwipeStartedFromEdge.current = false
+          resetPagePosition(false)
+          removeOverlay()
+          return
+        }
       }
 
-      // Se não for um swipe horizontal, cancelar
-      if (isHorizontalSwipe.current === false) {
-        isSwipeStartedFromEdge.current = false
-        resetVisualFeedback()
-        return
-      }
-
-      // Se for um swipe horizontal válido (para a direita)
+      // Se for um swipe horizontal valido (para a direita)
       if (isHorizontalSwipe.current && deltaX > 0) {
-        touchCurrentX.current = touch.clientX
+        // Limitar o arrasto ao tamanho da tela
+        const clampedDelta = Math.min(deltaX, screenWidth.current)
+        const progress = clampedDelta / screenWidth.current
 
-        // Calcular progresso (0 a 1) baseado no threshold
-        const progress = Math.min(deltaX / (threshold * 2), 1)
-        updateVisualFeedback(progress)
+        updatePagePosition(clampedDelta, progress)
       }
     }
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!isSwipeStartedFromEdge.current || !canGoBack()) {
-        resetVisualFeedback()
+    const handleTouchEnd = () => {
+      if (!isSwipeStartedFromEdge.current || !canGoBack() || !isHorizontalSwipe.current) {
+        resetPagePosition(false)
+        removeOverlay()
         isSwipeStartedFromEdge.current = false
         isHorizontalSwipe.current = null
         return
       }
 
-      const touch = e.changedTouches[0]
-      const deltaX = touch.clientX - touchStartX.current
-      const deltaY = Math.abs(touch.clientY - touchStartY.current)
+      // Calcular a posicao final
+      const currentTransform = pageElement.current?.style.transform || ''
+      const match = currentTransform.match(/translateX\((.+)px\)/)
+      const currentX = match ? parseFloat(match[1]) : 0
+      const progress = currentX / screenWidth.current
 
-      // Resetar feedback visual
-      resetVisualFeedback()
-
-      // Verificar se foi um swipe horizontal válido
-      // deltaX > threshold: moveu para a direita o suficiente
-      // deltaY < deltaX: mais horizontal que vertical
-      if (deltaX > threshold && deltaY < deltaX && isHorizontalSwipe.current) {
-        // Navegar para trás
-        navigate(-1)
+      // Se arrastou mais que o threshold, completar o swipe
+      if (progress >= threshold) {
+        completeSwipe()
+      } else {
+        // Caso contrario, voltar para a posicao original
+        resetPagePosition(true)
+        setTimeout(() => removeOverlay(), 300)
       }
 
-      // Reset
       isSwipeStartedFromEdge.current = false
       isHorizontalSwipe.current = null
     }
 
     const handleTouchCancel = () => {
-      resetVisualFeedback()
+      resetPagePosition(false)
+      removeOverlay()
       isSwipeStartedFromEdge.current = false
       isHorizontalSwipe.current = null
     }
@@ -220,7 +251,7 @@ export function useSwipeBack(options: SwipeBackOptions = {}) {
       document.removeEventListener('touchmove', handleTouchMove)
       document.removeEventListener('touchend', handleTouchEnd)
       document.removeEventListener('touchcancel', handleTouchCancel)
-      removeVisualElements()
+      removeOverlay()
     }
   }, [
     navigate,
@@ -229,9 +260,33 @@ export function useSwipeBack(options: SwipeBackOptions = {}) {
     edgeWidth,
     disabled,
     canGoBack,
-    createVisualElements,
-    removeVisualElements,
-    updateVisualFeedback,
-    resetVisualFeedback
+    createOverlay,
+    removeOverlay,
+    findPageElement,
+    updatePagePosition,
+    resetPagePosition,
+    completeSwipe,
   ])
+}
+
+// Hook para definir direcao ao navegar programaticamente
+export function useNavigateWithDirection() {
+  const navigate = useNavigate()
+  const { setDirection } = useNavigation()
+
+  const navigateForward = useCallback((to: string | number, options?: { replace?: boolean }) => {
+    setDirection('forward')
+    if (typeof to === 'number') {
+      navigate(to)
+    } else {
+      navigate(to, options)
+    }
+  }, [navigate, setDirection])
+
+  const navigateBack = useCallback(() => {
+    setDirection('back')
+    navigate(-1)
+  }, [navigate, setDirection])
+
+  return { navigateForward, navigateBack }
 }

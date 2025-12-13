@@ -2,10 +2,15 @@ import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { useStatusBar } from '@/hooks/useStatusBar'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { signIn } = useAuth()
+
+  // Status bar com icones pretos (fundo claro)
+  useStatusBar('light')
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)

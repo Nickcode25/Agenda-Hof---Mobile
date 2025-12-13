@@ -130,7 +130,7 @@ export function NewAppointmentPage() {
             Paciente *
           </label>
           {selectedPatient ? (
-            <div className="flex items-center gap-3 p-3 bg-white border border-surface-200 rounded-xl">
+            <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-300 rounded-lg">
               <Avatar name={selectedPatient.name} src={selectedPatient.photo_url || undefined} size="md" />
               <div className="flex-1">
                 <p className="font-medium text-surface-900">{selectedPatient.name}</p>

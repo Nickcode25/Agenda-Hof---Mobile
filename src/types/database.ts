@@ -46,7 +46,7 @@ export interface Patient {
   photo_url?: string | null
   notes?: string | null
   is_active: boolean
-  planned_procedures?: string | null
+  planned_procedures?: string | PlannedProcedure[] | null
   cep?: string | null
   street?: string | null
   number?: string | null
@@ -143,11 +143,25 @@ export interface CourtesyUser {
 }
 
 // Helper para parsear planned_procedures
-export function parsePlannedProcedures(jsonString?: string | null): PlannedProcedure[] {
-  if (!jsonString) return []
-  try {
-    return JSON.parse(jsonString)
-  } catch {
-    return []
+// Supabase pode retornar como string JSON ou como objeto já parseado
+export function parsePlannedProcedures(data?: string | PlannedProcedure[] | null): PlannedProcedure[] {
+  if (!data) return []
+
+  // Se já é um array (Supabase retornou como objeto), retorna diretamente
+  if (Array.isArray(data)) {
+    return data
   }
+
+  // Se é string, tenta parsear
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      console.error('[parsePlannedProcedures] Failed to parse:', data)
+      return []
+    }
+  }
+
+  return []
 }
