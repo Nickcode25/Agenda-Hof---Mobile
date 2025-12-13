@@ -12,7 +12,10 @@ import {
 } from '@/lib/notifications'
 
 export function NotificationsPage() {
-  const { refreshNotificationStatus, scheduleRemindersForToday } = useNotifications()
+  const {
+    refreshNotificationStatus,
+    scheduleRemindersForToday,
+  } = useNotifications()
   const [settings, setSettings] = useState<NotificationSettings>(getNotificationSettings())
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'default'>('default')
   const [requesting, setRequesting] = useState(false)
@@ -195,6 +198,55 @@ export function NotificationsPage() {
             </div>
           </div>
         )}
+
+        {/* Resumo diário - desabilitado temporariamente (requer Apple Developer Program)
+        {isPushNotificationSupported() && (
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  dailySummaryEnabled
+                    ? 'bg-amber-100'
+                    : 'bg-surface-100'
+                }`}>
+                  <Sunrise className={`w-5 h-5 ${
+                    dailySummaryEnabled ? 'text-amber-600' : 'text-surface-400'
+                  }`} />
+                </div>
+                <div>
+                  <h4 className="font-medium text-surface-900">Resumo diário às 7h</h4>
+                  <p className="text-sm text-surface-500">
+                    Receba um resumo dos pacientes do dia
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleToggleDailySummary}
+                disabled={togglingDailySummary}
+                className={`w-14 h-8 rounded-full transition-colors relative ${
+                  dailySummaryEnabled
+                    ? 'bg-success'
+                    : 'bg-surface-300'
+                } ${togglingDailySummary ? 'opacity-50' : ''}`}
+              >
+                <div
+                  className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-sm transition-transform ${
+                    dailySummaryEnabled
+                      ? 'translate-x-7'
+                      : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {dailySummaryEnabled && (
+              <p className="text-xs text-surface-400 mt-3 pl-13">
+                Todo dia às 7h você receberá uma notificação com o número de pacientes
+                agendados e o nome do primeiro paciente do dia.
+              </p>
+            )}
+          </div>
+        )}
+        */}
 
         {/* Aviso se permissão negada */}
         {permissionStatus === 'denied' && (

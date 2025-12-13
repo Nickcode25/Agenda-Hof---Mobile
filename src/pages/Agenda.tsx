@@ -438,14 +438,11 @@ export function AgendaPage() {
         </div>
       </header>
 
-      {/* Week Days Header - Compacto com swipe */}
+      {/* Week Days Header - Scroll horizontal para selecionar dias */}
       {viewMode === 'day' && (
-        <WeekCalendarHeader
-          weekDays={weekDays}
+        <ScrollableWeekCalendar
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
-          onSwipeLeft={() => setSelectedDate(addDays(selectedDate, 1))}
-          onSwipeRight={() => setSelectedDate(subDays(selectedDate, 1))}
         />
       )}
 
@@ -589,76 +586,60 @@ export function AgendaPage() {
   )
 }
 
-// Week Calendar Header com Swipe
-function WeekCalendarHeader({
-  weekDays,
+// Scrollable Week Calendar - Permite scroll horizontal para navegar entre dias
+function ScrollableWeekCalendar({
   selectedDate,
   onSelectDate,
-  onSwipeLeft,
-  onSwipeRight,
 }: {
-  weekDays: Date[]
   selectedDate: Date
   onSelectDate: (date: Date) => void
-  onSwipeLeft: () => void
-  onSwipeRight: () => void
 }) {
-  const touchStartX = useRef<number | null>(null)
-  const touchStartY = useRef<number | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [visibleDays, setVisibleDays] = useState<Date[]>([])
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-    touchStartY.current = e.touches[0].clientY
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return
-
-    const touchEndX = e.changedTouches[0].clientX
-    const touchEndY = e.changedTouches[0].clientY
-    const deltaX = touchEndX - touchStartX.current
-    const deltaY = touchEndY - touchStartY.current
-
-    // Verificar se o movimento é mais horizontal que vertical
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
-      const minSwipeDistance = 50 // Mínimo de 50px para considerar swipe
-
-      if (deltaX < -minSwipeDistance) {
-        // Swipe para esquerda - avançar semana
-        onSwipeLeft()
-      } else if (deltaX > minSwipeDistance) {
-        // Swipe para direita - voltar semana
-        onSwipeRight()
-      }
+  // Gera 21 dias (3 semanas) - 7 dias antes, dia atual, 13 dias depois
+  useEffect(() => {
+    const days: Date[] = []
+    for (let i = -7; i <= 13; i++) {
+      days.push(addDays(selectedDate, i))
     }
+    setVisibleDays(days)
+  }, [selectedDate])
 
-    touchStartX.current = null
-    touchStartY.current = null
-  }
+  // Scroll para o dia selecionado quando mudar
+  useEffect(() => {
+    if (scrollRef.current && visibleDays.length > 0) {
+      const dayWidth = 48 // Largura aproximada de cada dia
+      const containerWidth = scrollRef.current.offsetWidth
+      const selectedIndex = 7 // O dia selecionado está no índice 7 (meio dos primeiros 14)
+      const scrollPosition = (selectedIndex * dayWidth) - (containerWidth / 2) + (dayWidth / 2)
+      scrollRef.current.scrollTo({ left: Math.max(0, scrollPosition), behavior: 'smooth' })
+    }
+  }, [visibleDays])
 
   return (
-    <div
-      ref={containerRef}
-      className="bg-white border-b border-surface-100"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div className="flex">
+    <div className="bg-white border-b border-surface-100">
+      <div
+        ref={scrollRef}
+        className="flex overflow-x-auto scrollbar-hide py-1.5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {/* Espaço inicial para alinhar com a grade de horários */}
         <div className="w-11 flex-shrink-0" />
-        {weekDays.map((day) => (
+
+        {visibleDays.map((day) => (
           <button
             key={day.toISOString()}
             onClick={() => onSelectDate(day)}
-            className={`flex-1 py-1.5 text-center transition-colors ${
-              isSameDay(day, selectedDate) ? 'bg-primary-50' : ''
+            className={`flex-shrink-0 w-12 py-1 text-center transition-colors ${
+              isSameDay(day, selectedDate) ? 'bg-primary-50 rounded-lg' : ''
             }`}
           >
             <div className="text-[9px] uppercase font-semibold text-surface-400 mb-0.5">
               {format(day, 'EEEEE', { locale: ptBR })}
             </div>
             <div
-              className={`w-7 h-7 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
+              className={`w-8 h-8 mx-auto flex items-center justify-center rounded-full text-sm font-bold transition-all ${
                 isToday(day)
                   ? 'bg-primary-500 text-white shadow-sm shadow-primary-500/40'
                   : isSameDay(day, selectedDate)
@@ -670,6 +651,9 @@ function WeekCalendarHeader({
             </div>
           </button>
         ))}
+
+        {/* Espaço final */}
+        <div className="w-4 flex-shrink-0" />
       </div>
     </div>
   )

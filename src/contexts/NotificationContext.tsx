@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -10,12 +10,26 @@ import {
   isNativePlatform,
   getNotificationSettings,
 } from '@/lib/notifications'
+import {
+  isPushNotificationSupported,
+  registerForPushNotifications,
+  initPushNotificationListeners,
+  removePushNotificationListeners,
+  savePushTokenToDatabase,
+  saveDailySummaryPreference,
+  isDailySummaryEnabled,
+  setDailySummaryEnabled,
+} from '@/lib/pushNotifications'
 import { parseISO, startOfDay, endOfDay, addDays } from 'date-fns'
 
 interface NotificationContextType {
   notificationsEnabled: boolean
+  dailySummaryEnabled: boolean
+  pushToken: string | null
   scheduleRemindersForToday: () => Promise<void>
   refreshNotificationStatus: () => void
+  toggleDailySummary: (enabled: boolean) => Promise<boolean>
+  registerPushToken: () => Promise<string | null>
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -35,14 +49,56 @@ interface NotificationProviderProps {
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const { user } = useAuth()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [dailySummaryEnabled, setDailySummaryEnabledState] = useState(isDailySummaryEnabled())
+  const [pushToken, setPushToken] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
   const navigate = useNavigate()
 
   // Função para verificar status das notificações
-  const refreshNotificationStatus = () => {
+  const refreshNotificationStatus = useCallback(() => {
     const settings = getNotificationSettings()
     setNotificationsEnabled(settings.enabled && settings.permission === 'granted')
-  }
+    setDailySummaryEnabledState(isDailySummaryEnabled())
+  }, [])
+
+  // Registrar push token
+  const registerPushToken = useCallback(async (): Promise<string | null> => {
+    if (!isPushNotificationSupported() || !user) {
+      return null
+    }
+
+    try {
+      const token = await registerForPushNotifications()
+      if (token) {
+        setPushToken(token)
+        // Salva no banco de dados
+        await savePushTokenToDatabase(user.id, token)
+        return token
+      }
+      return null
+    } catch (error) {
+      console.error('[Notification] Error registering push token:', error)
+      return null
+    }
+  }, [user])
+
+  // Toggle daily summary
+  const toggleDailySummary = useCallback(async (enabled: boolean): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      // Salva localmente primeiro
+      setDailySummaryEnabled(enabled)
+      setDailySummaryEnabledState(enabled)
+
+      // Salva no banco de dados
+      const success = await saveDailySummaryPreference(user.id, enabled)
+      return success
+    } catch (error) {
+      console.error('[Notification] Error toggling daily summary:', error)
+      return false
+    }
+  }, [user])
 
   // Inicializa notificações SOMENTE após o login (uma única vez)
   useEffect(() => {
@@ -66,17 +122,51 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         refreshNotificationStatus()
       }
 
-      // Configura listener para quando notificação é clicada
+      // Configura listener para quando notificação local é clicada
       setupNotificationClickListener((_appointmentId) => {
         // Navega para a agenda quando clica na notificação
         navigate('/agenda')
       })
 
+      // Inicializa push notifications
+      if (isPushNotificationSupported()) {
+        initPushNotificationListeners(
+          // Token recebido
+          async (token) => {
+            setPushToken(token)
+            if (user) {
+              await savePushTokenToDatabase(user.id, token)
+            }
+          },
+          // Notificação recebida (app em foreground)
+          (notification) => {
+            console.log('[Notification] Push received in foreground:', notification)
+            // Pode mostrar um toast ou banner aqui
+          },
+          // Usuário clicou na notificação
+          (action) => {
+            console.log('[Notification] Push action performed:', action)
+            // Navega para agenda
+            navigate('/agenda')
+          }
+        )
+
+        // Registra para push notifications
+        await registerPushToken()
+      }
+
       setInitialized(true)
     }
 
     init()
-  }, [navigate, user, initialized])
+
+    // Cleanup
+    return () => {
+      if (isPushNotificationSupported()) {
+        removePushNotificationListeners()
+      }
+    }
+  }, [navigate, user, initialized, refreshNotificationStatus, registerPushToken])
 
   // Agenda lembretes para consultas do dia quando usuário loga ou configuração muda
   useEffect(() => {
@@ -153,8 +243,12 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     <NotificationContext.Provider
       value={{
         notificationsEnabled,
+        dailySummaryEnabled,
+        pushToken,
         scheduleRemindersForToday,
         refreshNotificationStatus,
+        toggleDailySummary,
+        registerPushToken,
       }}
     >
       {children}

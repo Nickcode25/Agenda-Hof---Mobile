@@ -14,7 +14,6 @@ export function NewPatientPage() {
   // Campos do formulário
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [birthDate, setBirthDate] = useState('')
 
@@ -35,6 +34,23 @@ export function NewPatientPage() {
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`
   }
 
+  // Formatação de data de nascimento DD/MM/AAAA
+  const formatBirthDate = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    if (numbers.length <= 2) return numbers
+    if (numbers.length <= 4) return `${numbers.slice(0, 2)}/${numbers.slice(2)}`
+    return `${numbers.slice(0, 2)}/${numbers.slice(2, 4)}/${numbers.slice(4, 8)}`
+  }
+
+  // Converter DD/MM/AAAA para AAAA-MM-DD (formato do banco)
+  const convertToISODate = (dateStr: string): string | null => {
+    const parts = dateStr.split('/')
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`
+    }
+    return null
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
@@ -53,9 +69,8 @@ export function NewPatientPage() {
           user_id: user!.id,
           name: name.trim(),
           phone: phone || null,
-          email: email || null,
           cpf: cpf || null,
-          birth_date: birthDate || null,
+          birth_date: convertToISODate(birthDate) || null,
           is_active: true,
           planned_procedures: '[]',
         })
@@ -110,21 +125,6 @@ export function NewPatientPage() {
           />
         </div>
 
-        {/* Email */}
-        <div>
-          <label className="block text-sm font-medium text-surface-700 mb-1.5">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input"
-            placeholder="email@exemplo.com"
-            autoComplete="email"
-          />
-        </div>
-
         {/* CPF */}
         <div>
           <label className="block text-sm font-medium text-surface-700 mb-1.5">
@@ -146,10 +146,13 @@ export function NewPatientPage() {
             Data de nascimento
           </label>
           <input
-            type="date"
+            type="text"
+            inputMode="numeric"
             value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
+            onChange={(e) => setBirthDate(formatBirthDate(e.target.value))}
             className="input"
+            placeholder="DD/MM/AAAA"
+            maxLength={10}
           />
         </div>
 
